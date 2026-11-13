@@ -29,11 +29,12 @@ enum Screen : uint8_t {
 };
 
 const int CONTENT_TOP = 20;
-const uint8_t SETTINGS_COUNT = 6;
+const uint8_t SETTINGS_COUNT = 5;
 
 Screen screen = SCREEN_MAIN;
 int mainSel = 0;              // 0 — settings, 1 — info, then animations
 uint8_t settingsSel = 0;
+uint8_t settingsSub = 0;      // 0 = FPS, 1 = rotation inside the combined row
 bool settingsEditing = false;
 int infoScroll = 0;
 uint32_t lastFpsRepeat = 0;
@@ -222,31 +223,76 @@ void drawMain(uint32_t now) {
 
 void drawSettingsRow(int idx, int y, int rh) {
     const settings::Data &c = settings::get();
+    const bool selected = (idx == settingsSel);
+    const bool editing = selected && settingsEditing;
+    const bool ink = !selected;
+    const int ty = y + (rh - 7) / 2;
+    const int W = gfx::width();
+    const int lx = 3;
+    const int rx = W - 3;
+
+    if (selected) gfx::fillRect(0, y, W, rh, true);
+
+    // Row 0 holds two settings: FPS and rotation. OK switches between them
+    // while editing, so the list is one row shorter and keeps normal spacing.
+    if (idx == 0) {
+        char fps[8];
+        char rot[10];
+        snprintf(fps, sizeof(fps), "%u", c.fps);
+        snprintf(rot, sizeof(rot), "%u°", static_cast<unsigned>(c.rotation) * 90);
+
+        const bool editFps = editing && settingsSub == 0;
+        const bool editRot = editing && settingsSub == 1;
+
+        char fpsShown[12];
+        char rotShown[14];
+        snprintf(fpsShown, sizeof(fpsShown), editFps ? "<%s>" : "%s", fps);
+        snprintf(rotShown, sizeof(rotShown), editRot ? "<%s>" : "%s", rot);
+
+        if (gfx::portrait()) {
+            if (editing) {
+                // The 64 px row cannot hold both values while editing,
+                // so only the active one is shown.
+                char line[24];
+                if (settingsSub == 0) {
+                    snprintf(line, sizeof(line), "FPS %s", fpsShown);
+                } else {
+                    snprintf(line, sizeof(line), L("ROT %s", "ПОВ %s"), rotShown);
+                }
+                gfx::text(lx, ty, line, 1, ink);
+            } else {
+                char line[16];
+                snprintf(line, sizeof(line), "FPS %s", fps);
+                gfx::text(lx, ty, line, 1, ink);
+                gfx::textRight(rx, ty, rot, 1, ink);
+            }
+        } else {
+            char left[24];
+            snprintf(left, sizeof(left), "FPS %s", fpsShown);
+            gfx::text(lx, ty, left, 1, ink);
+            char right[24];
+            snprintf(right, sizeof(right), L("ROT %s", "ПОВ %s"), rotShown);
+            gfx::textRight(rx, ty, right, 1, ink);
+        }
+        return;
+    }
+
     const char *label = "";
     const char *shortLabel = "";
     char value[20] = {0};
 
     switch (idx) {
-        case 0:
-            label = shortLabel = "FPS";
-            snprintf(value, sizeof(value), "%u", c.fps);
-            break;
         case 1:
-            label = L("ROTATION", "ПОВОРОТ");
-            shortLabel = L("ROT.", "ПОВ.");
-            snprintf(value, sizeof(value), "%u°", static_cast<unsigned>(c.rotation) * 90);
-            break;
-        case 2:
             label = L("BACKGROUND", "ФОН");
             shortLabel = L("BG", "ФОН");
             snprintf(value, sizeof(value), "%s", c.background ? L("STARS", "ЗВЁЗДЫ")
                                                             : L("SNOW", "СНЕГ"));
             break;
-        case 3:
+        case 2:
             label = shortLabel = L("GRID", "СЕТКА");
             snprintf(value, sizeof(value), "%u", c.grid);
             break;
-        case 4:
+        case 3:
             label = L("LANGUAGE", "ЯЗЫК");
             shortLabel = L("LANG", "ЯЗЫК");
             snprintf(value, sizeof(value), "%s", c.lang ? "RU" : "EN");
@@ -255,11 +301,6 @@ void drawSettingsRow(int idx, int y, int rh) {
             label = shortLabel = L("BACK", "НАЗАД");
             break;
     }
-
-    bool selected = (idx == settingsSel);
-    bool editing = selected && settingsEditing;
-    if (selected) gfx::fillRect(0, y, gfx::width(), rh, true);
-    bool ink = !selected;
 
     // While editing, the value is shown in angle brackets.
     char marked[24] = {0};
@@ -273,22 +314,18 @@ void drawSettingsRow(int idx, int y, int rh) {
     // 64 px wide portrait so the row never wraps or gets clipped.
     const char *shownLabel = gfx::portrait() ? shortLabel : label;
     if (editing && shown == marked &&
-        gfx::textWidth(shownLabel, 1) + 6 + gfx::textWidth(marked, 1) > gfx::width() - 4) {
+        gfx::textWidth(shownLabel, 1) + 6 + gfx::textWidth(marked, 1) > W - 4) {
         shown = value;  // brackets do not fit, keep the plain value
     }
 
-    int lx = gfx::portrait() ? 4 : 3;
-    int rx = gfx::width() - lx;
-    int ty = y + (rh - 7) / 2;
     gfx::text(lx, ty, shownLabel, 1, ink);
     if (shown[0]) gfx::textRight(rx, ty, shown, 1, ink);
 }
 
 void drawSettings() {
-    // One line per setting. The preferred height is 16 px in portrait and
-    // 8 px in landscape; if six rows do not fit into the area below the
-    // header, the step is reduced (7 px in landscape) so the last item
-    // (BACK) is not clipped by the bottom edge.
+    // One line per row, five rows in total. Preferred heights are 16 px in
+    // portrait and 8 px in landscape; if a future row count does not fit
+    // below the header, the step is reduced so nothing gets clipped.
     int rh = gfx::portrait() ? 16 : 8;
     int area = gfx::height() - CONTENT_TOP;
     while (rh > 1 && rh * SETTINGS_COUNT > area) rh--;
@@ -488,6 +525,7 @@ void playAnim(int index) {
 void activateMainItem() {
     if (mainSel == 0) {
         settingsSel = 0;
+        settingsSub = 0;
         settingsEditing = false;
         goScreen(SCREEN_SETTINGS);
     } else if (mainSel == 1) {
@@ -526,23 +564,26 @@ void applyRotation(int delta) {
 // Changes the selected setting by one step up (delta > 0) or down.
 void changeSetting(int delta) {
     settings::Data &c = settings::get();
-    switch (settingsSel) {
-        case 0:
+    if (settingsSel == 0) {
+        // The first row combines FPS and rotation.
+        if (settingsSub == 0) {
             applyFps(delta);
-            break;
-        case 1:
+        } else {
             applyRotation(delta);
-            break;
-        case 2:
+        }
+        return;
+    }
+    switch (settingsSel) {
+        case 1:
             c.background = c.background ? 0 : 1;
             background::reset();
             saveSettingsSoon();
             break;
-        case 3:
+        case 2:
             c.grid = (c.grid == 64) ? 25 : 64;
             saveSettingsSoon();
             break;
-        case 4:
+        case 3:
             c.lang = c.lang ? 0 : 1;
             saveSettingsSoon();
             break;
@@ -554,10 +595,12 @@ void changeSetting(int delta) {
 void activateSetting() {
     switch (settingsSel) {
         case 0:
+            settingsSub = 0;  // start with FPS, OK switches to rotation
+            settingsEditing = true;
+            break;
         case 1:
         case 2:
         case 3:
-        case 4:
             settingsEditing = true;
             break;
         default:
@@ -577,10 +620,12 @@ void moveMainSel(int delta) {
 }
 
 // In portrait rotations (90/270) the physical "down" button becomes
-// the logical "up". While the rotation row is being edited the layout
-// stays as at 0° so the buttons do not jump under the finger.
+// the logical "up". While rotation is being edited the layout stays as
+// at 0° so the buttons do not jump under the finger.
 bool buttonsSwapped() {
-    if (screen == SCREEN_SETTINGS && settingsEditing && settingsSel == 1) return false;
+    if (screen == SCREEN_SETTINGS && settingsEditing && settingsSel == 0 && settingsSub == 1) {
+        return false;
+    }
     uint8_t r = gfx::rotation();
     // 90 and 180 swap the buttons, 270 does not (verified on the device).
     return r == 1 || r == 2;
@@ -614,20 +659,28 @@ void handleButtons() {
         case SCREEN_SETTINGS:
             if (settingsEditing) {
                 uint32_t now = millis();
-                bool fpsRow = (settingsSel == 0);
-                if (okClick || okLong) {
+                bool fpsActive = (settingsSel == 0 && settingsSub == 0);
+                if (okLong) {
                     settingsEditing = false;
                     flushSettings();
+                } else if (okClick) {
+                    if (settingsSel == 0) {
+                        // Combined row: OK switches between FPS and rotation.
+                        settingsSub ^= 1;
+                    } else {
+                        settingsEditing = false;
+                        flushSettings();
+                    }
                 } else if (upClick) {
                     changeSetting(1);
-                    if (fpsRow) lastFpsRepeat = now;
-                } else if (upRepeat && fpsRow && now - lastFpsRepeat >= 180) {
+                    if (fpsActive) lastFpsRepeat = now;
+                } else if (upRepeat && fpsActive && now - lastFpsRepeat >= 180) {
                     changeSetting(1);
                     lastFpsRepeat = now;
                 } else if (downClick) {
                     changeSetting(-1);
-                    if (fpsRow) lastFpsRepeat = now;
-                } else if (downRepeat && fpsRow && now - lastFpsRepeat >= 180) {
+                    if (fpsActive) lastFpsRepeat = now;
+                } else if (downRepeat && fpsActive && now - lastFpsRepeat >= 180) {
                     changeSetting(-1);
                     lastFpsRepeat = now;
                 }

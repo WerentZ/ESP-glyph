@@ -140,14 +140,19 @@ editor adds the item to the menu automatically.
 |---|---|---|---|
 | Main menu | select item | open / play | open / play |
 | Settings | select row | enter editing | back |
-| Settings (editing) | change value | confirm and exit | confirm and exit |
+| Settings (editing) | change the active value | FPS row: switch FPS ↔ rotation; other rows: confirm and exit | confirm and exit |
 | Information | scroll | back | back |
 | Playback | up — info, down — pause | stop and return to menu | stop and return to menu |
 
 In settings a value changes after pressing **OK**: FPS by 1 frame (1…30),
 rotation 0° → 90° → 180° → 270°, background, grid and language toggle
-(English ↔ Russian).
-Holding the button repeats FPS slowly, about 5 values per second.
+(English ↔ Russian). Holding the button repeats FPS slowly, about 5 values per
+second.
+
+**FPS and rotation share one row** (`FPS 24  ROT 0°`) to keep normal row
+spacing. Press **OK** to edit FPS, press **OK** again to switch to rotation,
+change the active value with up/down, then hold **OK** to confirm and leave
+editing. The active value is shown in `<angle brackets>` where they fit.
 
 At 90° and 180° the "up" and "down" buttons are swapped: the one that was
 "down" at 0° becomes "up". At 270° the layout stays as at 0°. While editing the
