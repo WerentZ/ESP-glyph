@@ -1,4 +1,6 @@
-# Glyph Matrix
+<p align="center">
+  <img src="assets/banner.gif" alt="Glyph Matrix — анимированное звёздное поле вокруг названия проекта" width="800">
+</p>
 
 **Русский** · [English version](README.md)
 
@@ -214,6 +216,8 @@ src/ui.*                все экраны и обработка кнопок
 src/font5x7.h           шрифт ASCII + кириллица
 src/icons.h             иконки 8×8
 tools/gen_assets.py     генератор шрифта и иконок
+tools/make_banner.py    генератор звёздного баннера для README
+assets/banner.gif       баннер README (генерируется)
 ```
 
 ## API
@@ -255,3 +259,8 @@ MIT — см. [LICENSE](LICENSE). Проект можно свободно ис�
 
 Nothing Glyph Matrix — торговая марка Nothing Technology Limited.
 Этот проект не связан с Nothing и является независимой реализацией идеи.
+
+---
+
+Создано через [OpenCode](https://opencode.ai) с помощью DeepSeek 4.1 Flash Free
+(полностью вайбкод).

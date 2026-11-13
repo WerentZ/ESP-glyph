@@ -1,4 +1,6 @@
-# Glyph Matrix
+<p align="center">
+  <img src="assets/banner.gif" alt="Glyph Matrix — animated starfield around the project name" width="800">
+</p>
 
 [Русская версия](README.ru.md) · **English**
 
@@ -210,6 +212,8 @@ src/ui.*                all screens and button handling
 src/font5x7.h           ASCII + Cyrillic font
 src/icons.h             8×8 icons
 tools/gen_assets.py     font and icon generator
+tools/make_banner.py    README starfield banner generator
+assets/banner.gif       README banner (generated)
 ```
 
 ## API
@@ -251,3 +255,8 @@ the project; a link back is appreciated.
 
 Nothing Glyph Matrix is a trademark of Nothing Technology Limited. This project
 is not affiliated with Nothing and is an independent implementation of the idea.
+
+---
+
+Created with [OpenCode](https://opencode.ai) and DeepSeek 4.1 Flash Free
+(fully vibe-coded).

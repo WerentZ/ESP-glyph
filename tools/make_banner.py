@@ -1,0 +1,224 @@
+#!/usr/bin/env python3
+"""Generates assets/banner.gif for the README.
+
+The banner is a small starfield: twinkling stars around the project name,
+a faint glow behind the letters and one shooting star per loop. It is a
+plain GIF so GitHub renders it in every browser and in both color themes.
+
+Usage:  py tools/make_banner.py
+"""
+
+from __future__ import annotations
+
+import math
+import random
+from pathlib import Path
+
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
+
+ROOT = Path(__file__).resolve().parent.parent
+OUT = ROOT / "assets" / "banner.gif"
+
+W, H = 800, 200
+FRAMES = 36
+FPS = 18
+COLORS = 96
+
+TITLE = "GLYPH MATRIX"
+SUBTITLE = "ESP32 · OLED 128×64"
+
+FONT_CANDIDATES = [
+    Path("C:/Windows/Fonts/consolab.ttf"),
+    Path("C:/Windows/Fonts/consola.ttf"),
+    Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf"),
+    Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"),
+    Path("/System/Library/Fonts/Supplemental/Courier New Bold.ttf"),
+]
+
+
+def pick_font() -> Path:
+    for path in FONT_CANDIDATES:
+        if path.exists():
+            return path
+    raise FileNotFoundError("No monospace font found, add one to FONT_CANDIDATES")
+
+
+def tracked_width(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont,
+                  tracking: int) -> float:
+    return sum(draw.textlength(ch, font=font) for ch in text) + tracking * (len(text) - 1)
+
+
+def draw_tracked(draw: ImageDraw.ImageDraw, x: float, y: float, text: str,
+                 font: ImageFont.FreeTypeFont, fill, tracking: int) -> None:
+    for ch in text:
+        draw.text((x, y), ch, font=font, fill=fill)
+        x += draw.textlength(ch, font=font) + tracking
+
+
+def make_background() -> Image.Image:
+    bg = Image.new("RGB", (W, H))
+    px = bg.load()
+    for y in range(H):
+        t = y / (H - 1)
+        r = int(5 + 9 * t)
+        g = int(8 + 14 * t)
+        b = int(20 + 28 * t)
+        for x in range(W):
+            # A soft horizontal falloff keeps the edges darker.
+            edge = 0.72 + 0.28 * math.sin(math.pi * x / (W - 1))
+            px[x, y] = (int(r * edge), int(g * edge), int(b * edge))
+    return bg
+
+
+class Star:
+    __slots__ = ("x", "y", "size", "phase", "speed", "color", "sparkle")
+
+    def __init__(self, x: float, y: float, size: int, phase: float, speed: int,
+                 color: tuple, sparkle: bool) -> None:
+        self.x = x
+        self.y = y
+        self.size = size
+        self.phase = phase
+        self.speed = speed
+        self.color = color
+        self.sparkle = sparkle
+
+
+def make_stars(count: int, box: tuple[float, float, float, float]) -> list[Star]:
+    rng = random.Random(20261113)
+    palette = [(196, 226, 255), (170, 205, 255), (222, 240, 255), (150, 190, 250)]
+    stars: list[Star] = []
+    x0, y0, x1, y1 = box
+    while len(stars) < count:
+        x = rng.uniform(4, W - 5)
+        y = rng.uniform(4, H - 5)
+        if x0 < x < x1 and y0 < y < y1:
+            continue  # keep the name readable
+        stars.append(Star(
+            x=x,
+            y=y,
+            size=rng.choice([1, 1, 1, 2]),
+            phase=rng.uniform(0, math.tau),
+            speed=rng.choice([1, 1, 2]),
+            color=rng.choice(palette),
+            sparkle=rng.random() < 0.14,
+        ))
+    return stars
+
+
+def draw_stars(overlay: ImageDraw.ImageDraw, stars: list[Star], frame: int) -> None:
+    t = frame / FRAMES
+    for s in stars:
+        wave = 0.5 + 0.5 * math.sin(s.phase + math.tau * s.speed * t)
+        alpha = int(18 + 200 * wave ** 3)
+        if alpha <= 20:
+            continue
+        r = s.size
+        overlay.ellipse([s.x - r, s.y - r, s.x + r, s.y + r],
+                        fill=(*s.color, alpha))
+        if s.sparkle and wave > 0.72:
+            arm = 2 + int(3 * wave)
+            ray = (*s.color, max(30, alpha // 2))
+            overlay.line([(s.x - arm, s.y), (s.x + arm, s.y)], fill=ray, width=1)
+            overlay.line([(s.x, s.y - arm), (s.x, s.y + arm)], fill=ray, width=1)
+
+
+def draw_shooting_star(overlay: ImageDraw.ImageDraw, frame: int) -> None:
+    first, last = 24, 31
+    if not (first <= frame <= last):
+        return
+    t = (frame - first) / (last - first)
+    head_x = 690 - 210 * t
+    head_y = 22 + 46 * t
+    trail = 74
+    tail_x = head_x + trail
+    tail_y = head_y - trail * 0.30
+    fade = math.sin(math.pi * t)
+    overlay.line([(tail_x, tail_y), (head_x, head_y)],
+                 fill=(165, 215, 255, int(150 * fade)), width=2)
+    overlay.ellipse([head_x - 2, head_y - 2, head_x + 2, head_y + 2],
+                    fill=(240, 250, 255, int(230 * fade)))
+
+
+def draw_hud(overlay: ImageDraw.ImageDraw) -> None:
+    m, arm = 9, 16
+    color = (46, 96, 138, 150)
+    for x, y, sx, sy in ((m, m, 1, 1), (W - 1 - m, m, -1, 1),
+                         (m, H - 1 - m, 1, -1), (W - 1 - m, H - 1 - m, -1, -1)):
+        overlay.line([(x, y), (x + sx * arm, y)], fill=color, width=1)
+        overlay.line([(x, y), (x, y + sy * arm)], fill=color, width=1)
+
+
+def main() -> None:
+    OUT.parent.mkdir(parents=True, exist_ok=True)
+
+    font_path = pick_font()
+    title_size = 66
+    title_font = ImageFont.truetype(str(font_path), title_size)
+    sub_font = ImageFont.truetype(str(font_path), 15)
+
+    probe = ImageDraw.Draw(Image.new("RGBA", (W, H)))
+    tracking = 6
+    title_w = tracked_width(probe, TITLE, title_font, tracking)
+    title_bbox = title_font.getbbox(TITLE)
+    title_h = title_bbox[3] - title_bbox[1]
+    title_x = (W - title_w) / 2
+    title_y = (H - title_h) / 2 - title_bbox[1] - 14
+
+    sub_tracking = 3
+    sub_w = tracked_width(probe, SUBTITLE, sub_font, sub_tracking)
+    sub_y = title_y + title_bbox[1] + title_h + 16
+
+    box = (title_x - 34, title_y - 22, title_x + title_w + 34, sub_y + 22)
+    stars = make_stars(120, box)
+
+    background = make_background()
+    frames: list[Image.Image] = []
+
+    for frame in range(FRAMES):
+        img = background.convert("RGBA")
+        overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(overlay)
+
+        draw_stars(draw, stars, frame)
+        draw_shooting_star(draw, frame)
+        draw_hud(draw)
+        img = Image.alpha_composite(img, overlay)
+
+        # Glow behind the title.
+        glow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        gdraw = ImageDraw.Draw(glow)
+        draw_tracked(gdraw, title_x, title_y, TITLE, title_font,
+                     (96, 210, 255, 255), tracking)
+        glow = glow.filter(ImageFilter.GaussianBlur(9))
+        img = Image.alpha_composite(img, glow)
+
+        # Sharp letters and the subtitle.
+        text = ImageDraw.Draw(img)
+        draw_tracked(text, title_x, title_y, TITLE, title_font,
+                     (236, 249, 255, 255), tracking)
+        draw_tracked(text, (W - sub_w) / 2, sub_y, SUBTITLE, sub_font,
+                     (104, 156, 190, 220), sub_tracking)
+
+        frames.append(img.convert("RGB"))
+
+    # One shared palette avoids color flicker between frames.
+    palette_source = frames[0].quantize(colors=COLORS, method=Image.MEDIANCUT)
+    paletted = [f.quantize(palette=palette_source, dither=Image.Dither.NONE)
+                for f in frames]
+
+    paletted[0].save(
+        OUT,
+        save_all=True,
+        append_images=paletted[1:],
+        duration=int(1000 / FPS),
+        loop=0,
+        optimize=True,
+        disposal=2,
+    )
+    print(f"wrote {OUT.relative_to(ROOT)} ({OUT.stat().st_size // 1024} KB, "
+          f"{W}x{H}, {FRAMES} frames)")
+
+
+if __name__ == "__main__":
+    main()
