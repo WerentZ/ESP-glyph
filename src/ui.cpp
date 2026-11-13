@@ -223,32 +223,36 @@ void drawMain(uint32_t now) {
 void drawSettingsRow(int idx, int y, int rh) {
     const settings::Data &c = settings::get();
     const char *label = "";
+    const char *shortLabel = "";
     char value[20] = {0};
 
     switch (idx) {
         case 0:
-            label = "FPS";
+            label = shortLabel = "FPS";
             snprintf(value, sizeof(value), "%u", c.fps);
             break;
         case 1:
             label = L("ROTATION", "ПОВОРОТ");
+            shortLabel = L("ROT.", "ПОВ.");
             snprintf(value, sizeof(value), "%u°", static_cast<unsigned>(c.rotation) * 90);
             break;
         case 2:
             label = L("BACKGROUND", "ФОН");
+            shortLabel = L("BG", "ФОН");
             snprintf(value, sizeof(value), "%s", c.background ? L("STARS", "ЗВЁЗДЫ")
                                                             : L("SNOW", "СНЕГ"));
             break;
         case 3:
-            label = L("GRID", "СЕТКА");
+            label = shortLabel = L("GRID", "СЕТКА");
             snprintf(value, sizeof(value), "%u", c.grid);
             break;
         case 4:
             label = L("LANGUAGE", "ЯЗЫК");
+            shortLabel = L("LANG", "ЯЗЫК");
             snprintf(value, sizeof(value), "%s", c.lang ? "RU" : "EN");
             break;
         default:
-            label = L("BACK", "НАЗАД");
+            label = shortLabel = L("BACK", "НАЗАД");
             break;
     }
 
@@ -265,20 +269,27 @@ void drawSettingsRow(int idx, int y, int rh) {
         shown = marked;
     }
 
-    if (gfx::portrait()) {
-        gfx::text(4, y + 2, label, 1, ink);
-        if (shown[0]) gfx::text(8, y + 9, shown, 1, ink);
-    } else {
-        gfx::text(3, y, label, 1, ink);
-        if (shown[0]) gfx::textRight(gfx::width() - 3, y, shown, 1, ink);
+    // One line per setting: full labels in landscape, short ones in the
+    // 64 px wide portrait so the row never wraps or gets clipped.
+    const char *shownLabel = gfx::portrait() ? shortLabel : label;
+    if (editing && shown == marked &&
+        gfx::textWidth(shownLabel, 1) + 6 + gfx::textWidth(marked, 1) > gfx::width() - 4) {
+        shown = value;  // brackets do not fit, keep the plain value
     }
+
+    int lx = gfx::portrait() ? 4 : 3;
+    int rx = gfx::width() - lx;
+    int ty = y + (rh - 7) / 2;
+    gfx::text(lx, ty, shownLabel, 1, ink);
+    if (shown[0]) gfx::textRight(rx, ty, shown, 1, ink);
 }
 
 void drawSettings() {
-    // Six rows of 8 px do not fit into the 44 px landscape area below the
-    // header, so the row height is reduced until the whole list fits and the
-    // last item (BACK) is not clipped at the bottom edge.
-    int rh = rowHeight();
+    // One line per setting. The preferred height is 16 px in portrait and
+    // 8 px in landscape; if six rows do not fit into the area below the
+    // header, the step is reduced (7 px in landscape) so the last item
+    // (BACK) is not clipped by the bottom edge.
+    int rh = gfx::portrait() ? 16 : 8;
     int area = gfx::height() - CONTENT_TOP;
     while (rh > 1 && rh * SETTINGS_COUNT > area) rh--;
     int total = SETTINGS_COUNT * rh;
