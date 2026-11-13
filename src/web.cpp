@@ -94,6 +94,7 @@ String settingsJson() {
     j += ",\"rotation\":" + String(c.rotation);
     j += ",\"background\":\"" + String(c.background ? "stars" : "snow") + "\"";
     j += ",\"grid\":" + String(c.grid);
+    j += ",\"lang\":\"" + String(c.lang ? "ru" : "en") + "\"";
     j += "}";
     return j;
 }
@@ -113,6 +114,7 @@ String infoJson() {
     j += ",\"fps\":" + String(c.fps);
     j += ",\"rotation\":" + String(c.rotation);
     j += ",\"background\":\"" + String(c.background ? "stars" : "snow") + "\"";
+    j += ",\"lang\":\"" + String(c.lang ? "ru" : "en") + "\"";
     j += ",\"ip\":\"" + jsonEscape(web::ip()) + "\"";
     j += ",\"ap\":\"" AP_SSID "\"";
     j += ",\"ap_pass\":\"" AP_PASS "\"";
@@ -203,6 +205,10 @@ void handleSettingsPost() {
     }
     if (http.hasArg("grid")) {
         c.grid = (http.arg("grid").toInt() == 64) ? 64 : 25;
+    }
+    if (http.hasArg("lang")) {
+        String l = http.arg("lang");
+        c.lang = (l == "ru" || l == "1") ? 1 : 0;
     }
     settings::save();
     sendJson(200, settingsJson());

@@ -25,6 +25,7 @@ void begin() {
     cfg.background = prefs.getUChar("bg", 0) ? 1 : 0;
     uint8_t grid = prefs.getUChar("grid", DEFAULT_GRID);
     cfg.grid = (grid == 64) ? 64 : 25;
+    cfg.lang = prefs.getUChar("lang", 0) ? 1 : 0;
     cfg.stockVersion = prefs.getUChar("stk", 0);
     started = true;
 }
@@ -37,6 +38,7 @@ void save() {
     prefs.putUChar("rot", cfg.rotation);
     prefs.putUChar("bg", cfg.background);
     prefs.putUChar("grid", cfg.grid);
+    prefs.putUChar("lang", cfg.lang);
     prefs.putUChar("stk", cfg.stockVersion);
 }
 

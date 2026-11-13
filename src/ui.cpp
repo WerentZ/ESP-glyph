@@ -29,7 +29,7 @@ enum Screen : uint8_t {
 };
 
 const int CONTENT_TOP = 20;
-const uint8_t SETTINGS_COUNT = 5;
+const uint8_t SETTINGS_COUNT = 6;
 
 Screen screen = SCREEN_MAIN;
 int mainSel = 0;              // 0 — settings, 1 — info, then animations
@@ -54,6 +54,10 @@ bool settingsDirty = false;
 // ------------------------------------------------------------
 //  Small helpers
 // ------------------------------------------------------------
+
+// English is the base language; Russian is enabled in the settings.
+bool ru() { return settings::get().lang != 0; }
+const char *L(const char *en, const char *ruText) { return ru() ? ruText : en; }
 
 int rowHeight() { return gfx::portrait() ? 18 : 8; }
 
@@ -103,10 +107,10 @@ void refreshAnims() {
 
 void fmtDuration(uint32_t ms, char *out, size_t n) {
     if (ms < 1000) {
-        snprintf(out, n, "%lu МС", static_cast<unsigned long>(ms));
+        snprintf(out, n, "%lu %s", static_cast<unsigned long>(ms), L("MS", "МС"));
     } else {
-        snprintf(out, n, "%lu.%02lu С", static_cast<unsigned long>(ms / 1000),
-                 static_cast<unsigned long>((ms % 1000) / 10));
+        snprintf(out, n, "%lu.%02lu %s", static_cast<unsigned long>(ms / 1000),
+                 static_cast<unsigned long>((ms % 1000) / 10), L("S", "С"));
     }
 }
 
@@ -162,9 +166,9 @@ const uint8_t *mainIcon() {
 }
 
 const char *mainTitle() {
-    if (mainSel == 0) return gfx::portrait() ? "НАСТР" : "НАСТРОЙКИ";
-    if (mainSel == 1) return "ИНФО";
-    return gfx::portrait() ? "АНИМ" : "АНИМАЦИЯ";
+    if (mainSel == 0) return gfx::portrait() ? L("SET", "НАСТР") : L("SETTINGS", "НАСТРОЙКИ");
+    if (mainSel == 1) return L("INFO", "ИНФО");
+    return gfx::portrait() ? L("ANIM", "АНИМ") : L("ANIMATION", "АНИМАЦИЯ");
 }
 
 // Subtitle under the item: for an animation it is the name without extension.
@@ -227,19 +231,24 @@ void drawSettingsRow(int idx, int y, int rh) {
             snprintf(value, sizeof(value), "%u", c.fps);
             break;
         case 1:
-            label = "ПОВОРОТ";
+            label = L("ROTATION", "ПОВОРОТ");
             snprintf(value, sizeof(value), "%u°", static_cast<unsigned>(c.rotation) * 90);
             break;
         case 2:
-            label = "ФОН";
-            snprintf(value, sizeof(value), "%s", c.background ? "ЗВЁЗДЫ" : "СНЕГ");
+            label = L("BACKGROUND", "ФОН");
+            snprintf(value, sizeof(value), "%s", c.background ? L("STARS", "ЗВЁЗДЫ")
+                                                            : L("SNOW", "СНЕГ"));
             break;
         case 3:
-            label = "СЕТКА";
+            label = L("GRID", "СЕТКА");
             snprintf(value, sizeof(value), "%u", c.grid);
             break;
+        case 4:
+            label = L("LANGUAGE", "ЯЗЫК");
+            snprintf(value, sizeof(value), "%s", c.lang ? "RU" : "EN");
+            break;
         default:
-            label = "НАЗАД";
+            label = L("BACK", "НАЗАД");
             break;
     }
 
@@ -286,19 +295,19 @@ void infoRow(int idx, const char *&label, char *value, size_t n) {
     const settings::Data &c = settings::get();
     switch (idx) {
         case 0:
-            label = "ПРОЕКТ";
+            label = L("PROJECT", "ПРОЕКТ");
             snprintf(value, n, "%s", PROJECT_NAME);
             break;
         case 1:
-            label = "ПЛАТА";
+            label = L("BOARD", "ПЛАТА");
             snprintf(value, n, "%s", BOARD_SHORT);
             break;
         case 2:
-            label = "ВЕРСИЯ";
+            label = L("VERSION", "ВЕРСИЯ");
             snprintf(value, n, "%s", PROJECT_VERSION);
             break;
         case 3:
-            label = "СЕТКА";
+            label = L("GRID", "СЕТКА");
             snprintf(value, n, "%ux%u", c.grid, c.grid);
             break;
         case 4:
@@ -306,35 +315,37 @@ void infoRow(int idx, const char *&label, char *value, size_t n) {
             snprintf(value, n, "%u", c.fps);
             break;
         case 5:
-            label = "ФОН";
-            snprintf(value, n, "%s", c.background ? "ЗВЁЗДЫ" : "СНЕГ");
+            label = L("BACKGROUND", "ФОН");
+            snprintf(value, n, "%s", c.background ? L("STARS", "ЗВЁЗДЫ")
+                                                 : L("SNOW", "СНЕГ"));
             break;
         case 6:
             label = "WI-FI";
             snprintf(value, n, "%s", AP_SSID);
             break;
         case 7:
-            label = "ПАРОЛЬ";
+            label = L("PASSWORD", "ПАРОЛЬ");
             snprintf(value, n, "%s", AP_PASS);
             break;
         case 8: {
-            label = "АДРЕС";
+            label = L("IP", "АДРЕС");
             String ip = web::ip();
             snprintf(value, n, "%s", ip.c_str());
             break;
         }
         case 9:
-            label = "САЙТ";
+            label = L("SITE", "САЙТ");
             snprintf(value, n, "%s.local", MDNS_HOST);
             break;
         case 10:
-            label = "ПАМЯТЬ";
-            snprintf(value, n, "%lu/%luКБ",
+            label = L("MEMORY", "ПАМЯТЬ");
+            snprintf(value, n, "%lu/%lu%s",
                      static_cast<unsigned long>(LittleFS.usedBytes() / 1024),
-                     static_cast<unsigned long>(LittleFS.totalBytes() / 1024));
+                     static_cast<unsigned long>(LittleFS.totalBytes() / 1024),
+                     L("KB", "КБ"));
             break;
         default:
-            label = "АНИМ";
+            label = L("ANIMS", "АНИМ");
             snprintf(value, n, "%d", static_cast<int>(anims.size()));
             break;
     }
@@ -405,27 +416,27 @@ void drawPlayingInfo() {
         centerClipped(68, a.name.c_str(), W);
         snprintf(buf, sizeof(buf), "FPS %u", c.fps);
         centerClipped(78, buf, W);
-        snprintf(buf, sizeof(buf), "КАДРОВ %u", a.frames);
+        snprintf(buf, sizeof(buf), L("FRAMES %u", "КАДРОВ %u"), a.frames);
         centerClipped(88, buf, W);
-        centerClipped(98, "ДЛИТ.", W);
+        centerClipped(98, L("DURATION", "ДЛИТ."), W);
         centerClipped(108, dur, W);
-        centerClipped(119, "OK=СТОП", W);
+        centerClipped(119, L("OK=STOP", "OK=СТОП"), W);
     } else {
         int tx = 66;
         gfx::textClipped(tx, 3, W - tx - 2, a.name.c_str(), 1, true);
         snprintf(buf, sizeof(buf), "FPS %u", c.fps);
         gfx::textClipped(tx, 13, W - tx - 2, buf, 1, true);
-        snprintf(buf, sizeof(buf), "КАДРОВ %u", a.frames);
+        snprintf(buf, sizeof(buf), L("FRAMES %u", "КАДРОВ %u"), a.frames);
         gfx::textClipped(tx, 23, W - tx - 2, buf, 1, true);
-        gfx::textClipped(tx, 33, W - tx - 2, "ДЛИТ.", 1, true);
+        gfx::textClipped(tx, 33, W - tx - 2, L("DURATION", "ДЛИТ."), 1, true);
         gfx::textClipped(tx, 43, W - tx - 2, dur, 1, true);
-        gfx::textClipped(tx, 54, W - tx - 2, "OK=СТОП", 1, true);
+        gfx::textClipped(tx, 54, W - tx - 2, L("OK=STOP", "OK=СТОП"), 1, true);
     }
 }
 
 void drawPlaying() {
     if (!player.isOpen()) {
-        gfx::textCenter(gfx::width() / 2, gfx::height() / 2 - 3, "НЕТ ФАЙЛА", 1, true);
+        gfx::textCenter(gfx::width() / 2, gfx::height() / 2 - 3, L("NO FILE", "НЕТ ФАЙЛА"), 1, true);
         return;
     }
     if (infoOverlay) {
@@ -515,6 +526,10 @@ void changeSetting(int delta) {
             c.grid = (c.grid == 64) ? 25 : 64;
             saveSettingsSoon();
             break;
+        case 4:
+            c.lang = c.lang ? 0 : 1;
+            saveSettingsSoon();
+            break;
         default:
             break;
     }
@@ -526,6 +541,7 @@ void activateSetting() {
         case 1:
         case 2:
         case 3:
+        case 4:
             settingsEditing = true;
             break;
         default:
@@ -687,11 +703,12 @@ void draw(uint32_t now) {
             drawMain(now);
             break;
         case SCREEN_SETTINGS:
-            drawHeader(icons::GEAR, gfx::portrait() ? "НАСТР" : "НАСТРОЙКИ");
+            drawHeader(icons::GEAR,
+                       gfx::portrait() ? L("SET", "НАСТР") : L("SETTINGS", "НАСТРОЙКИ"));
             drawSettings();
             break;
         case SCREEN_INFO:
-            drawHeader(icons::PENCIL, "ИНФО");
+            drawHeader(icons::PENCIL, L("INFO", "ИНФО"));
             drawInfo();
             break;
         case SCREEN_PLAYING:

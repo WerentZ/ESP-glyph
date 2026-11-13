@@ -16,7 +16,8 @@ phone-friendly animation editor.
 - Animations on a **25×25** or **64×64** grid.
 - Menu with a frame, section icon and edge arrows.
 - Main screen cycles through **Settings → Info → animations**.
-- Settings: FPS (1…30), rotation 0/90/180/270, background (snow/stars), editor grid.
+- Settings: FPS (1…30), rotation 0/90/180/270, background (snow/stars), editor grid,
+  interface language.
 - Info screen: project, board, version, grid, FPS, Wi-Fi, site address, memory.
 - Animation info: name, FPS, frame count and duration as `frames / FPS`.
 - Playback: animation in the centre, info on **up**, pause on **down**,
@@ -27,7 +28,7 @@ phone-friendly animation editor.
   and `.anim` download.
 - Built-in animations `PULSE`, `WAVE`, `SCAN`, `SPIRAL` are created on first boot.
 - Web pages are embedded into the firmware — no separate filesystem upload.
-- Website and editor share an **EN / RU** language switch (English by default).
+- The device UI, website and editor all speak **English (default) and Russian**.
 
 ## Hardware
 
@@ -84,11 +85,12 @@ To connect the ESP32 to your home network as well, fill in `STA_SSID` and
 
 - Device information, IP, memory, firmware and the current screen.
 - Wi-Fi password (`AP_PASS`) and network name.
-- FPS, rotation, background and grid settings.
+- FPS, rotation, background, grid and device language settings.
 - Animation list: play, download, delete.
 - `.anim` upload from a phone or computer.
 - **EN / RU** switch in the header: English is the default, Russian is one click
-  away and is remembered in the browser.
+  away and is remembered in the browser. This switch only changes the website;
+  the device language is selected in the **Device language** row below.
 
 ### Standalone editor `editor.html`
 
@@ -127,9 +129,10 @@ animation name is shown in a frame, without the file extension (for example
 `PULSE`, not `PULSE.anim`). Uploading a new `.anim` through the website or the
 editor adds the item to the menu automatically.
 
-> The on-device UI is in Russian. All strings live in `src/ui.cpp` and
-> `src/main.cpp` and can be translated in place — the built-in font already
-> covers Latin and Cyrillic.
+> The on-device UI is English by default. Open **SETTINGS → LANGUAGE** and press
+> **OK** to switch to Russian; the choice is stored in NVS. All strings live in
+> `src/ui.cpp` and `src/main.cpp` and are translated in place with the `L(en, ru)`
+> helper — the built-in font already covers Latin and Cyrillic.
 
 ## Buttons
 
@@ -142,7 +145,8 @@ editor adds the item to the menu automatically.
 | Playback | up — info, down — pause | stop and return to menu | stop and return to menu |
 
 In settings a value changes after pressing **OK**: FPS by 1 frame (1…30),
-rotation 0° → 90° → 180° → 270°, background and grid toggle.
+rotation 0° → 90° → 180° → 270°, background, grid and language toggle
+(English ↔ Russian).
 Holding the button repeats FPS slowly, about 5 values per second.
 
 At 90° and 180° the "up" and "down" buttons are swapped: the one that was
@@ -209,7 +213,7 @@ tools/gen_assets.py     font and icon generator
 |---|---|---|
 | GET | `/api/info` | device state and parameters |
 | GET | `/api/settings` | current settings |
-| POST | `/api/settings` | change `fps`, `rotation`, `background`, `grid` |
+| POST | `/api/settings` | change `fps`, `rotation`, `background`, `grid`, `lang` |
 | GET | `/api/animations` | animation list |
 | GET | `/api/anim?name=NAME` | download a file |
 | POST | `/api/anim` | upload `.anim` (multipart, field `file`) |

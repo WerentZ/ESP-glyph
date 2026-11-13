@@ -27,9 +27,9 @@ welcome.
   private fields, comments in English.
 - Do not change pin assignments, Wi-Fi credentials or the `.anim` format without
   a good reason; if you do, update both READMEs and the API table.
-- Device UI strings are in `src/ui.cpp` and `src/main.cpp`; the built-in font
-  supports Latin and Cyrillic. Web strings live in the `DICT` object inside
-  `web/index.html` and `editor.html` (English and Russian).
+- Device UI strings are in `src/ui.cpp` and `src/main.cpp` and use the `L(en, ru)`
+  helper; the built-in font supports Latin and Cyrillic. Web strings live in the
+  `DICT` object inside `web/index.html` and `editor.html` (English and Russian).
 - Keep pull requests small and focused. Describe what you changed and why, and
   mention the board you tested on.
 

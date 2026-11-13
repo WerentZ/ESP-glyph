@@ -9,6 +9,10 @@
 
 namespace {
 
+// English is the base language; Russian is enabled in the settings.
+bool ru() { return settings::get().lang != 0; }
+const char *L(const char *en, const char *ruText) { return ru() ? ruText : en; }
+
 // ------------------------------------------------------------
 //  Splash screen
 // ------------------------------------------------------------
@@ -49,7 +53,7 @@ void drawBootInfo() {
     int H = gfx::height();
 
     gfx::rect(0, 0, W, 14, true);
-    gfx::textCenter(W / 2, 4, "WI-FI ГОТОВ", 1, true);
+    gfx::textCenter(W / 2, 4, L("WI-FI READY", "WI-FI ГОТОВ"), 1, true);
 
     String ip = web::ip();
 
@@ -64,29 +68,29 @@ void drawBootInfo() {
         snprintf(hostBuf, sizeof(hostBuf), "%s.local", MDNS_HOST);
 
         Pair pairs[4] = {
-            {"СЕТЬ", AP_SSID},
-            {"ПАРОЛЬ", AP_PASS},
-            {"АДРЕС", ipBuf},
-            {"САЙТ", hostBuf},
+            {L("NETWORK", "СЕТЬ"), AP_SSID},
+            {L("PASSWORD", "ПАРОЛЬ"), AP_PASS},
+            {L("IP", "АДРЕС"), ipBuf},
+            {L("SITE", "САЙТ"), hostBuf},
         };
         for (int i = 0; i < 4; i++) {
             int y = 20 + i * 24;
             gfx::text(5, y, pairs[i].label, 1, true);
             gfx::textClipped(8, y + 9, W - 12, pairs[i].value, 1, true);
         }
-        gfx::textCenter(W / 2, H - 13, "ОТКРОЙТЕ", 1, true);
+        gfx::textCenter(W / 2, H - 13, L("OPEN", "ОТКРОЙТЕ"), 1, true);
     } else {
         char line[40];
         int y = 18;
-        snprintf(line, sizeof(line), "СЕТЬ: %s", AP_SSID);
+        snprintf(line, sizeof(line), L("NETWORK: %s", "СЕТЬ: %s"), AP_SSID);
         gfx::text(4, y, line, 1, true);
-        snprintf(line, sizeof(line), "ПАРОЛЬ: %s", AP_PASS);
+        snprintf(line, sizeof(line), L("PASSWORD: %s", "ПАРОЛЬ: %s"), AP_PASS);
         gfx::text(4, y + 10, line, 1, true);
-        snprintf(line, sizeof(line), "САЙТ: %s", ip.c_str());
+        snprintf(line, sizeof(line), L("SITE: %s", "САЙТ: %s"), ip.c_str());
         gfx::text(4, y + 20, line, 1, true);
-        snprintf(line, sizeof(line), "ИЛИ: %s.local", MDNS_HOST);
+        snprintf(line, sizeof(line), L("OR: %s.local", "ИЛИ: %s.local"), MDNS_HOST);
         gfx::text(4, y + 30, line, 1, true);
-        gfx::textCenter(W / 2, H - 8, "ОТКРОЙТЕ БРАУЗЕР", 1, true);
+        gfx::textCenter(W / 2, H - 8, L("OPEN BROWSER", "ОТКРОЙТЕ БРАУЗЕР"), 1, true);
     }
 
     gfx::present();
@@ -111,7 +115,7 @@ void setup() {
     gfx::setRotation(settings::get().rotation);
 
     Serial.println("[BOOT] splash");
-    drawSplash("ЗАГРУЗКА");
+    drawSplash(L("LOADING", "ЗАГРУЗКА"));
     delay(SPLASH_MS);
 
     Serial.println("[BOOT] filesystem");

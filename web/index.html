@@ -272,6 +272,17 @@
         <button data-v="64">64 x 64</button>
       </div>
     </div>
+
+    <div class="row">
+      <div>
+        <div class="label" data-i18n="settings.lang">Device language</div>
+        <div class="hint" data-i18n="settings.langHint">Language of the OLED interface</div>
+      </div>
+      <div class="seg" id="seg-lang">
+        <button data-v="en">EN</button>
+        <button data-v="ru">RU</button>
+      </div>
+    </div>
   </section>
 
   <section class="card">
@@ -355,6 +366,8 @@
       "settings.stars": "Stars",
       "settings.grid": "Editor grid",
       "settings.gridHint": "Default size for new animations",
+      "settings.lang": "Device language",
+      "settings.langHint": "Language of the OLED interface",
       "upload.title": "Upload animation",
       "upload.choose": "Choose a .anim file",
       "upload.browse": "Browse",
@@ -417,6 +430,8 @@
       "settings.stars": "Звёзды",
       "settings.grid": "Сетка редактора",
       "settings.gridHint": "Размер по умолчанию для новых анимаций",
+      "settings.lang": "Язык устройства",
+      "settings.langHint": "Язык интерфейса на OLED",
       "upload.title": "Загрузить анимацию",
       "upload.choose": "Выберите файл .anim",
       "upload.browse": "Обзор",
@@ -531,6 +546,7 @@
     setSeg($("seg-rot"), s.rotation);
     setSeg($("seg-bg"), s.background);
     setSeg($("seg-grid"), s.grid);
+    setSeg($("seg-lang"), s.lang);
   }
 
   async function loadSettings(){
@@ -736,6 +752,12 @@
     var b = e.target.closest("button");
     if (!b) return;
     saveSettings({grid: b.getAttribute("data-v")});
+  });
+
+  $("seg-lang").addEventListener("click", function(e){
+    var b = e.target.closest("button");
+    if (!b) return;
+    saveSettings({lang: b.getAttribute("data-v")});
   });
 
   $("file-input").addEventListener("change", function(){
