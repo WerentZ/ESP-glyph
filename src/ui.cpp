@@ -275,9 +275,14 @@ void drawSettingsRow(int idx, int y, int rh) {
 }
 
 void drawSettings() {
+    // Six rows of 8 px do not fit into the 44 px landscape area below the
+    // header, so the row height is reduced until the whole list fits and the
+    // last item (BACK) is not clipped at the bottom edge.
     int rh = rowHeight();
+    int area = gfx::height() - CONTENT_TOP;
+    while (rh > 1 && rh * SETTINGS_COUNT > area) rh--;
     int total = SETTINGS_COUNT * rh;
-    int freeSpace = gfx::height() - CONTENT_TOP - total;
+    int freeSpace = area - total;
     int top = CONTENT_TOP + (freeSpace > 0 ? freeSpace / 2 : 0);
 
     for (int i = 0; i < SETTINGS_COUNT; i++) {
