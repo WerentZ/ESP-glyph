@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#050506">
+<title>Glyph Matrix — Editor</title>
+<style>
+  :root{
+    --bg:#050506;
+    --card:#101012;
+    --card2:#151518;
+    --line:#26262b;
+    --line2:#34343a;
+    --fg:#f2f2f0;
+    --muted:#8b8b93;
+    --dim:#606068;
+    --accent:#e10600;
+    --radius:20px;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding:16px 12px 46px;min-height:100vh;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+    background:
+      radial-gradient(700px 380px at 50% -12%,rgba(255,255,255,.06),transparent 70%),
+      radial-gradient(400px 300px at 100% 100%,rgba(225,6,0,.055),transparent 70%);
+  }
+  .wrap{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:13px}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:2px 4px 6px}
+  .back{
+    display:inline-flex;align-items:center;gap:8px;color:var(--muted);text-decoration:none;
+    font-size:12px;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--line);
+    border-radius:999px;padding:9px 13px;background:var(--card);
+  }
+  .back:hover{color:var(--fg)}
+  .ttl{font-size:13px;font-weight:650;letter-spacing:.16em;text-transform:uppercase;text-align:right}
+  .ttl small{display:block;font-size:10px;color:var(--muted);letter-spacing:.14em;margin-top:3px;font-weight:500}
+  .chip{
+    display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--card);
+    border-radius:999px;padding:8px 11px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--dim)}
+  .dot.on{background:#7ae582;box-shadow:0 0 9px rgba(122,229,130,.8)}
+  .card{
+    border:1px solid var(--line);background:linear-gradient(180deg,var(--card2),var(--card));
+    border-radius:var(--radius);padding:15px;
+  }
+  .card h2{
+    margin:0 0 12px;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);
+    font-weight:600;display:flex;align-items:center;gap:9px
+  }
+  .card h2::before{content:"";width:16px;height:1px;background:var(--line2)}
+  .card h2 .right{margin-left:auto;display:flex;gap:6px}
+  .padwrap{position:relative;border-radius:15px;overflow:hidden;border:1px solid var(--line);background:#08080a}
+  #pad{display:block;width:100%;aspect-ratio:1/1;touch-action:none;cursor:crosshair;image-rendering:pixelated}
+  .toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:11px}
+  .toolbar .spacer{flex:1}
+  .btn{
+    appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    border:1px solid var(--line2);background:var(--card);color:var(--fg);
+    font:600 11px/1 inherit;letter-spacing:.07em;text-transform:uppercase;
+    padding:10px 12px;border-radius:11px;cursor:pointer;min-height:40px;text-decoration:none;
+  }
+  .btn:hover{border-color:#4a4a52}
+  .btn:disabled{opacity:.32;cursor:default}
+  .btn.primary{background:var(--fg);color:#08080a;border-color:var(--fg)}
+  .btn.red{color:#ff6b66;border-color:#4a2320}
+  .btn.act{background:var(--fg);color:#08080a;border-color:var(--fg)}
+  .btn.icon{width:40px;padding:0;min-height:40px;font-size:15px}
+  .btn.small{padding:8px 10px;min-height:34px;font-size:10px;border-radius:9px}
+  .brush{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .brush button{
+    appearance:none;border:0;border-right:1px solid var(--line);background:var(--card);color:var(--muted);
+    font:600 12px/1 var(--mono);width:38px;height:40px;cursor:pointer
+  }
+  .brush button:last-child{border-right:0}
+  .brush button.act{background:var(--fg);color:#08080a}
+  .brush.tools button{width:auto;min-width:46px;padding:0 9px;font-family:inherit;font-size:11px;letter-spacing:.03em}
+  .frames{
+    display:flex;gap:8px;overflow-x:auto;padding:2px 1px 6px;scrollbar-width:thin;
+    -webkit-overflow-scrolling:touch;
+  }
+  .fchip{
+    position:relative;flex:0 0 auto;width:58px;height:70px;border:1px solid var(--line);border-radius:11px;
+    background:#0a0a0c;padding:5px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;
+  }
+  .fchip canvas{width:46px;height:46px;display:block;border-radius:6px;background:#070708}
+  .fchip span{font:600 9px/1 var(--mono);color:var(--muted)}
+  .fchip.act{border-color:var(--fg);box-shadow:0 0 0 1px var(--fg) inset}
+  .fchip.act span{color:var(--fg)}
+  .statrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .stat{
+    flex:1 1 90px;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:#0b0b0d;min-width:0;
+  }
+  .stat .k{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+  .stat .v{font-family:var(--mono);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .previewwrap{display:flex;gap:14px;align-items:center}
+  #preview{
+    width:132px;height:132px;flex:0 0 auto;border:1px solid var(--line);border-radius:14px;
+    background:#070708;image-rendering:pixelated
+  }
+  .previewinfo{min-width:0;flex:1}
+  .previewinfo .big{font:600 12px/1.4 inherit;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .previewinfo .num{font-family:var(--mono);font-size:15px;margin-top:6px}
+  .previewinfo .actions{display:flex;gap:7px;margin-top:11px;flex-wrap:wrap}
+  .seg{display:flex;border:1px solid var(--line);border-radius:999px;padding:3px;gap:3px;background:#0a0a0c}
+  .seg button{
+    appearance:none;border:0;background:transparent;color:var(--muted);font:600 11px/1 inherit;
+    padding:9px 12px;border-radius:999px;cursor:pointer;white-space:nowrap;min-height:33px;
+  }
+  .seg button.act{background:var(--fg);color:#08080a}
+  .field{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--line)}
+  .field:first-of-type{border-top:0;padding-top:0}
+  .field .lbl{font-size:12px;color:var(--muted)}
+  input[type=text]{
+    appearance:none;background:#0a0a0c;border:1px solid var(--line2);border-radius:11px;color:var(--fg);
+    font:600 14px/1 var(--mono);padding:11px 12px;min-width:0;width:100%;outline:none;
+  }
+  input[type=text]:focus{border-color:#5a5a64}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:140px;max-width:45vw;height:26px;background:transparent;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--line2);border-radius:2px}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:var(--fg);
+    border:4px solid var(--card);margin-top:-8px;box-shadow:0 0 0 1px var(--line2);
+  }
+  input[type=range]::-moz-range-track{height:2px;background:var(--line2)}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--fg);border:4px solid var(--card)}
+  .val{font-family:var(--mono);font-size:14px;min-width:38px;text-align:right}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .actions .btn{flex:1 1 46%}
+  .hint{font-size:11px;color:var(--muted);line-height:1.45;margin-top:10px}
+  .toast{
+    position:fixed;left:50%;bottom:20px;transform:translate(-50%,20px);background:var(--fg);color:#08080a;
+    border-radius:999px;padding:12px 18px;font:600 12px/1.25 inherit;opacity:0;pointer-events:none;
+    transition:opacity .2s,transform .2s;z-index:60;max-width:90vw;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.55);
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .toast.err{background:#ff6b66;color:#1a0503}
+  .hidden{display:none!important}
+  @media (max-width:380px){
+    body{padding:12px 9px 38px}
+    .card{padding:12px}
+    #preview{width:112px;height:112px}
+    .brush button{width:34px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <a class="back" id="site-link" href="http://192.168.4.1/" target="_blank" rel="noopener" data-i18n="nav.device">← Device</a>
+    <div class="ttl"><span data-i18n="nav.editor">Editor</span><small data-i18n="nav.standalone">standalone · Glyph Matrix</small></div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <button class="btn small" id="lang-btn" title="Language">EN</button>
+      <div class="chip"><span class="dot" id="dev-dot"></span><span id="dev-text" data-i18n="status.offline">offline</span></div>
+    </div>
+  </header>
+
+  <section class="card">
+    <h2><span data-i18n="canvas.title">Canvas</span> <span class="right"><span id="grid-label" style="font:500 10px var(--mono);color:var(--dim)">25 x 25</span></span></h2>
+    <div class="padwrap"><canvas id="pad" width="512" height="512"></canvas></div>
+
+    <div class="toolbar">
+      <div class="brush tools" id="tool-seg" aria-label="Tool">
+        <button data-tool="brush" class="act" data-i18n="tool.brush">Brush</button>
+        <button data-tool="circle" data-i18n="tool.circle">Circle</button>
+        <button data-tool="square" data-i18n="tool.square">Square</button>
+        <button data-tool="rect" data-i18n="tool.rect">Rect</button>
+        <button data-tool="ellipse" data-i18n="tool.ellipse">Oval</button>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="brush" id="brush-seg" aria-label="Brush size">
+        <button data-brush="1" class="act">1</button>
+        <button data-brush="2">2</button>
+        <button data-brush="3">3</button>
+        <button data-brush="4">4</button>
+      </div>
+      <button class="btn" id="round-btn" title="Round brush" data-i18n="tool.round">Round</button>
+      <button class="btn" id="erase-btn" title="Eraser" data-i18n="tool.eraser">Eraser</button>
+      <button class="btn" id="invert-btn" title="Invert frame" data-i18n="tool.invert">Invert</button>
+      <button class="btn red" id="clear-btn" title="Clear frame" data-i18n="tool.clear">Clear</button>
+      <span class="spacer"></span>
+      <button class="btn icon" id="undo-btn" disabled title="Undo">↶</button>
+      <button class="btn icon" id="redo-btn" disabled title="Redo">↷</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span data-i18n="frames.title">Frames</span> <span class="right">
+      <button class="btn small" id="add-frame" data-i18n="frames.add">+ Frame</button>
+      <button class="btn small" id="dup-frame" data-i18n="frames.dup">Duplicate</button>
+    </span></h2>
+    <div class="frames" id="frames"></div>
+    <div class="toolbar" style="margin-top:4px">
+      <button class="btn small" id="frame-left" title="Move frame left" data-i18n="frames.left">← Move</button>
+      <button class="btn small" id="frame-right" title="Move frame right" data-i18n="frames.right">Move →</button>
+      <span class="spacer"></span>
+      <button class="btn small red" id="del-frame" data-i18n="frames.delete">Delete frame</button>
+    </div>
+    <div class="statrow">
+      <div class="stat"><div class="k" data-i18n="stat.frames">Frames</div><div class="v" id="stat-frames">1</div></div>
+      <div class="stat"><div class="k" data-i18n="stat.duration">Duration</div><div class="v" id="stat-dur">0.08 s</div></div>
+      <div class="stat"><div class="k" data-i18n="stat.grid">Grid</div><div class="v" id="stat-grid">25 x 25</div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 data-i18n="preview.title">Preview</h2>
+    <div class="previewwrap">
+      <canvas id="preview" width="264" height="264"></canvas>
+      <div class="previewinfo">
+        <div class="big" data-i18n="preview.sub">Animation preview</div>
+        <div class="num"><span id="play-fps-label">12</span> FPS</div>
+        <div class="actions">
+          <button class="btn primary" id="play-btn">▶ Play</button>
+        </div>
+      </div>
+    </div>
+    <div class="field" style="margin-top:12px">
+      <span class="lbl" data-i18n="preview.fps">Animation FPS</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <input type="range" id="fps" min="1" max="30" step="1" value="12">
+        <span class="val" id="fps-val">12</span>
+      </div>
+    </div>
+    <div class="hint" data-i18n="preview.hint">On the device the speed is set by the global FPS setting. The value here is saved into the file as the author value.</div>
+  </section>
+
+  <section class="card">
+    <h2 data-i18n="file.title">File</h2>
+    <div class="field">
+      <span class="lbl" data-i18n="file.device">Device</span>
+      <input type="text" id="host" maxlength="80" value="http://192.168.4.1" spellcheck="false" autocomplete="off" inputmode="url">
+    </div>
+    <div class="field">
+      <span class="lbl" data-i18n="file.name">Name</span>
+      <input type="text" id="name" maxlength="24" value="MYANIM" spellcheck="false" autocomplete="off">
+    </div>
+    <div class="field">
+      <span class="lbl" data-i18n="file.grid">Grid</span>
+      <div class="seg" id="grid-seg">
+        <button data-grid="25" class="act">25 x 25</button>
+        <button data-grid="64">64 x 64</button>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="save-btn" data-i18n="file.save">Save</button>
+      <button class="btn" id="save-play-btn" data-i18n="file.onDevice">On device</button>
+      <button class="btn" id="download-btn" data-i18n="file.download">Download .anim</button>
+      <button class="btn" id="load-btn" data-i18n="file.load">Load file</button>
+      <input type="file" id="load-input" accept=".anim,application/octet-stream" class="hidden">
+    </div>
+    <div class="hint" data-i18n-html="file.hint">Keep the file on your phone and open it without the site. To send it to the ESP32, connect your phone to Wi-Fi <b>GlyphMatrix</b> (password <b>glyph1234</b>) and press “Save”. The drawing progress is stored in the browser automatically.</div>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var LS_KEY = "glyph-editor-v1";
+  var LS_HOST = "glyph-editor-host";
+  var DEFAULT_HOST = "http://192.168.4.1";
+  var MAX_FRAMES = 512;
+  var MAX_HISTORY = 40;
+
+  var $ = function(id){ return document.getElementById(id); };
+
+  // Base device address. Can be changed in the "Device" field.
+  function deviceBase(){
+    var raw = ($("host").value || DEFAULT_HOST).trim();
+    if (!/^https?:\/\//i.test(raw)) raw = "http://" + raw;
+    return raw.replace(/\/+$/, "");
+  }
+
+  function apiUrl(path){
+    return deviceBase() + path;
+  }
+
+  function updateSiteLink(){
+    $("site-link").href = deviceBase() + "/";
+  }
+  var canvas = $("pad");
+  var ctx = canvas.getContext("2d");
+  var preview = $("preview");
+  var pctx = preview.getContext("2d");
+
+  function toast(msg, isErr){
+    var t = $("toast");
+    t.textContent = msg;
+    t.className = "toast show" + (isErr ? " err" : "");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function(){ t.className = "toast"; }, 2600);
+  }
+
+  var state = {
+    name: "MYANIM",
+    w: 25, h: 25,
+    fps: 12,
+    frames: [],
+    index: 0,
+    brush: 1,
+    round: false,
+    tool: "brush",
+    erase: false,
+    playing: false,
+    playIndex: 0,
+    playTimer: null
+  };
+
+  // ------------------------------------------------------------
+  //  UI language: English by default, Russian on demand
+  // ------------------------------------------------------------
+
+  var LANG_KEY = "glyph-editor-lang";
+  var lang = "en";
+  try { lang = localStorage.getItem(LANG_KEY) || "en"; } catch(e){}
+  if (lang !== "ru") lang = "en";
+
+  var DICT = {
+    en: {
+      "doc.title": "Glyph Matrix — Editor",
+      "nav.device": "← Device",
+      "nav.editor": "Editor",
+      "nav.standalone": "standalone · Glyph Matrix",
+      "status.offline": "offline",
+      "status.online": "online",
+      "status.playing": "playing: ",
+      "canvas.title": "Canvas",
+      "tool.brush": "Brush",
+      "tool.circle": "Circle",
+      "tool.square": "Square",
+      "tool.rect": "Rect",
+      "tool.ellipse": "Oval",
+      "tool.round": "Round",
+      "tool.eraser": "Eraser",
+      "tool.invert": "Invert",
+      "tool.clear": "Clear",
+      "frames.title": "Frames",
+      "frames.add": "+ Frame",
+      "frames.dup": "Duplicate",
+      "frames.left": "← Move",
+      "frames.right": "Move →",
+      "frames.delete": "Delete frame",
+      "stat.frames": "Frames",
+      "stat.duration": "Duration",
+      "stat.grid": "Grid",
+      "preview.title": "Preview",
+      "preview.sub": "Animation preview",
+      "preview.fps": "Animation FPS",
+      "preview.hint": "On the device the speed is set by the global FPS setting. The value here is saved into the file as the author value.",
+      "file.title": "File",
+      "file.device": "Device",
+      "file.name": "Name",
+      "file.grid": "Grid",
+      "file.save": "Save",
+      "file.onDevice": "On device",
+      "file.download": "Download .anim",
+      "file.load": "Load file",
+      "file.hint": "Keep the file on your phone and open it without the site. To send it to the ESP32, connect your phone to Wi-Fi <b>GlyphMatrix</b> (password <b>glyph1234</b>) and press “Save”. The drawing progress is stored in the browser automatically.",
+      "frame.label": "Frame {n}",
+      "dur.s": "s",
+      "play.play": "▶ Play",
+      "play.stop": "■ Stop",
+      "err.notGlym": "This is not a GLYM file",
+      "err.version": "Unsupported format version",
+      "err.grid": "Square grids up to 64 x 64 are supported",
+      "err.frames": "Invalid frame count",
+      "err.size": "File size does not match the header",
+      "toast.maxFrames": "Maximum {n} frames",
+      "toast.keepFrame": "At least one frame must remain",
+      "confirm.grid": "Change grid to {n} x {n}? All frames will be cleared.",
+      "toast.enterName": "Enter an animation name",
+      "toast.saved": "Saved: ",
+      "toast.playingOnDevice": "Playing on device: ",
+      "toast.saveError": "Save failed: {msg}. Is the phone connected to GlyphMatrix Wi-Fi?",
+      "toast.loaded": "Loaded: {name} ({n} frames)",
+      "toast.openFailed": "Could not open: {msg}",
+      "toast.readError": "File read error"
+    },
+    ru: {
+      "doc.title": "Glyph Matrix — редактор",
+      "nav.device": "← Устройство",
+      "nav.editor": "Редактор",
+      "nav.standalone": "автономный · Glyph Matrix",
+      "status.offline": "нет связи",
+      "status.online": "на связи",
+      "status.playing": "играет: ",
+      "canvas.title": "Холст",
+      "tool.brush": "Кисть",
+      "tool.circle": "Круг",
+      "tool.square": "Квадрат",
+      "tool.rect": "Прямоуг.",
+      "tool.ellipse": "Овал",
+      "tool.round": "Круглая",
+      "tool.eraser": "Ластик",
+      "tool.invert": "Инверсия",
+      "tool.clear": "Очистить",
+      "frames.title": "Кадры",
+      "frames.add": "+ Кадр",
+      "frames.dup": "Копия",
+      "frames.left": "← Сдвинуть",
+      "frames.right": "Сдвинуть →",
+      "frames.delete": "Удалить кадр",
+      "stat.frames": "Кадров",
+      "stat.duration": "Длительность",
+      "stat.grid": "Сетка",
+      "preview.title": "Предпросмотр",
+      "preview.sub": "Проверка анимации",
+      "preview.fps": "FPS анимации",
+      "preview.hint": "На устройстве скорость задаётся глобальной настройкой FPS. Значение здесь сохраняется в файл как авторское.",
+      "file.title": "Файл",
+      "file.device": "Устройство",
+      "file.name": "Имя",
+      "file.grid": "Сетка",
+      "file.save": "Сохранить",
+      "file.onDevice": "На устройстве",
+      "file.download": "Скачать .anim",
+      "file.load": "Загрузить файл",
+      "file.hint": "Файл можно держать на телефоне и открывать без сайта. Для отправки на ESP32 подключите телефон к Wi-Fi <b>GlyphMatrix</b> (пароль <b>glyph1234</b>) и нажмите «Сохранить». Прогресс рисунка хранится в браузере автоматически.",
+      "frame.label": "Кадр {n}",
+      "dur.s": "с",
+      "play.play": "▶ Играть",
+      "play.stop": "■ Стоп",
+      "err.notGlym": "Это не файл GLYM",
+      "err.version": "Версия формата не поддерживается",
+      "err.grid": "Поддерживаются квадратные сетки до 64 x 64",
+      "err.frames": "Некорректное число кадров",
+      "err.size": "Размер файла не совпадает с заголовком",
+      "toast.maxFrames": "Максимум {n} кадров",
+      "toast.keepFrame": "Должен остаться хотя бы один кадр",
+      "confirm.grid": "Сменить сетку на {n} x {n}? Все кадры будут очищены.",
+      "toast.enterName": "Введите имя анимации",
+      "toast.saved": "Сохранено: ",
+      "toast.playingOnDevice": "Играет на устройстве: ",
+      "toast.saveError": "Ошибка сохранения: {msg}. Телефон в сети GlyphMatrix?",
+      "toast.loaded": "Загружено: {name} ({n} кадр.)",
+      "toast.openFailed": "Не удалось открыть: {msg}",
+      "toast.readError": "Ошибка чтения файла"
+    }
+  };
+
+  function t(key, vars){
+    var s = (DICT[lang] && DICT[lang][key]) || DICT.en[key] || key;
+    if (vars){
+      Object.keys(vars).forEach(function(k){
+        s = s.replace("{" + k + "}", vars[k]);
+      });
+    }
+    return s;
+  }
+
+  function applyLang(){
+    document.documentElement.lang = lang;
+    var els = document.querySelectorAll("[data-i18n]");
+    for (var i = 0; i < els.length; i++){
+      els[i].textContent = t(els[i].getAttribute("data-i18n"));
+    }
+    var htmlEls = document.querySelectorAll("[data-i18n-html]");
+    for (var j = 0; j < htmlEls.length; j++){
+      htmlEls[j].innerHTML = t(htmlEls[j].getAttribute("data-i18n-html"));
+    }
+    $("lang-btn").textContent = lang.toUpperCase();
+    document.title = t("doc.title");
+  }
+
+  var history = [];
+  var redoStack = [];
+  var drawing = false;
+  var lastCell = null;
+  var shapeStart = null;
+  var shapeBase = null;
+  var renderQueued = false;
+  var saveTimer = null;
+
+  // ------------------------------------------------------------
+  //  .anim format
+  // ------------------------------------------------------------
+
+  function frameBytes(w){ return Math.ceil(w * w / 8); }
+  function blankFrame(w){ return new Uint8Array(frameBytes(w)); }
+
+  function encodeAnim(){
+    var w = state.w, h = state.h;
+    var fb = Math.ceil(w * h / 8);
+    var n = state.frames.length;
+    var out = new Uint8Array(16 + fb * n);
+    out[0] = 0x47; out[1] = 0x4C; out[2] = 0x59; out[3] = 0x4D;
+    out[4] = 1;
+    out[5] = w; out[6] = h; out[7] = state.fps; out[8] = 1;
+    out[12] = n & 0xFF; out[13] = (n >> 8) & 0xFF;
+    for (var i = 0; i < n; i++) out.set(state.frames[i], 16 + i * fb);
+    return out;
+  }
+
+  function decodeAnim(buffer){
+    var b = new Uint8Array(buffer);
+    if (b.length < 16 || b[0] !== 0x47 || b[1] !== 0x4C || b[2] !== 0x59 || b[3] !== 0x4D)
+      throw new Error(t("err.notGlym"));
+    if (b[4] !== 1) throw new Error(t("err.version"));
+    var w = b[5], h = b[6], fps = b[7], n = b[12] | (b[13] << 8);
+    if (!w || !h || w > 64 || h > 64 || w !== h)
+      throw new Error(t("err.grid"));
+    if (!n || n > MAX_FRAMES) throw new Error(t("err.frames"));
+    var fb = Math.ceil(w * h / 8);
+    if (b.length !== 16 + fb * n) throw new Error(t("err.size"));
+    var frames = [];
+    for (var i = 0; i < n; i++) frames.push(b.slice(16 + i * fb, 16 + (i + 1) * fb));
+    return {w: w, h: h, fps: fps || 12, frames: frames};
+  }
+
+  // ------------------------------------------------------------
+  //  Pixels
+  // ------------------------------------------------------------
+
+  function getPx(f, x, y){
+    var i = y * state.w + x;
+    return (f[i >> 3] >> (i & 7)) & 1;
+  }
+
+  function setPx(f, x, y, v){
+    if (x < 0 || y < 0 || x >= state.w || y >= state.h) return;
+    var i = y * state.w + x, m = 1 << (i & 7);
+    if (v) f[i >> 3] |= m; else f[i >> 3] &= ~m;
+  }
+
+  function paintCell(cx, cy){
+    var f = state.frames[state.index];
+    if (!f) return;
+    var n = state.brush;
+    var startX = cx - Math.floor((n - 1) / 2);
+    var startY = cy - Math.floor((n - 1) / 2);
+    var v = state.erase ? 0 : 1;
+    if (state.round && n > 1){
+      var mid = (n - 1) / 2;
+      var rad = mid + 0.3;
+      for (var dy = 0; dy < n; dy++)
+        for (var dx = 0; dx < n; dx++){
+          var ox = dx - mid, oy = dy - mid;
+          if (ox * ox + oy * oy <= rad * rad) setPx(f, startX + dx, startY + dy, v);
+        }
+      return;
+    }
+    for (var yy = 0; yy < n; yy++)
+      for (var xx = 0; xx < n; xx++)
+        setPx(f, startX + xx, startY + yy, v);
+  }
+
+  function lineTo(cell){
+    if (!lastCell){ paintCell(cell.x, cell.y); }
+    else {
+      var x0 = lastCell.x, y0 = lastCell.y, x1 = cell.x, y1 = cell.y;
+      var dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+      var dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+      var err = dx + dy;
+      for (;;){
+        paintCell(x0, y0);
+        if (x0 === x1 && y0 === y1) break;
+        var e2 = err * 2;
+        if (e2 >= dy){ err += dy; x0 += sx; }
+        if (e2 <= dx){ err += dx; y0 += sy; }
+      }
+    }
+    lastCell = cell;
+  }
+
+  // ------------------------------------------------------------
+  //  Shapes: circle, square, rectangle, oval
+  // ------------------------------------------------------------
+
+  function isShapeTool(){ return state.tool !== "brush"; }
+
+  function drawShape(tool, x0, y0, x1, y1){
+    var minX = Math.min(x0, x1), maxX = Math.max(x0, x1);
+    var minY = Math.min(y0, y1), maxY = Math.max(y0, y1);
+
+    if (tool === "square"){
+      var s = Math.max(maxX - minX, maxY - minY);
+      var ex = x0 + (x1 < x0 ? -s : s);
+      var ey = y0 + (y1 < y0 ? -s : s);
+      minX = Math.min(x0, ex); maxX = Math.max(x0, ex);
+      minY = Math.min(y0, ey); maxY = Math.max(y0, ey);
+    }
+
+    if (tool === "rect" || tool === "square"){
+      for (var x = minX; x <= maxX; x++){ paintCell(x, minY); paintCell(x, maxY); }
+      for (var y = minY; y <= maxY; y++){ paintCell(minX, y); paintCell(maxX, y); }
+      return;
+    }
+
+    var cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+    var rx = Math.max((maxX - minX) / 2, 0.5);
+    var ry = Math.max((maxY - minY) / 2, 0.5);
+    if (tool === "circle"){
+      rx = ry = Math.max(rx, ry);
+      minX = Math.floor(cx - rx); maxX = Math.ceil(cx + rx);
+      minY = Math.floor(cy - ry); maxY = Math.ceil(cy + ry);
+    }
+
+    var tol = 1.25 / Math.max(rx, ry);
+    for (var yy = minY; yy <= maxY; yy++){
+      for (var xx = minX; xx <= maxX; xx++){
+        var nx = (xx - cx) / rx, ny = (yy - cy) / ry;
+        var d = Math.sqrt(nx * nx + ny * ny);
+        if (Math.abs(d - 1) <= tol) paintCell(xx, yy);
+      }
+    }
+  }
+
+  function shapePreview(cell){
+    var f = state.frames[state.index];
+    if (!f || !shapeStart || !shapeBase) return;
+    f.set(shapeBase);
+    drawShape(state.tool, shapeStart.x, shapeStart.y, cell.x, cell.y);
+  }
+
+  // ------------------------------------------------------------
+  //  History
+  // ------------------------------------------------------------
+
+  function snapshot(){
+    return {
+      w: state.w, h: state.h, index: state.index,
+      frames: state.frames.map(function(f){ return new Uint8Array(f); })
+    };
+  }
+
+  function pushHistory(){
+    history.push(snapshot());
+    if (history.length > MAX_HISTORY) history.shift();
+    redoStack.length = 0;
+    updateButtons();
+  }
+
+  function applySnapshot(s){
+    state.w = s.w; state.h = s.h;
+    state.frames = s.frames.map(function(f){ return new Uint8Array(f); });
+    state.index = Math.min(s.index, state.frames.length - 1);
+    if (state.index < 0) state.index = 0;
+    syncUI();
+    renderAll();
+    saveLocal();
+  }
+
+  function undo(){
+    if (!history.length) return;
+    stopPlay();
+    redoStack.push(snapshot());
+    applySnapshot(history.pop());
+  }
+
+  function redo(){
+    if (!redoStack.length) return;
+    stopPlay();
+    history.push(snapshot());
+    applySnapshot(redoStack.pop());
+  }
+
+  // ------------------------------------------------------------
+  //  Rendering
+  // ------------------------------------------------------------
+
+  function drawGridLines(c, size, cell){
+    c.strokeStyle = "rgba(255,255,255,.055)";
+    c.lineWidth = 1;
+    var step = state.w <= 25 ? 1 : 8;
+    for (var i = 0; i <= state.w; i += step){
+      var p = Math.round(i * cell) + 0.5;
+      c.beginPath(); c.moveTo(p, 0); c.lineTo(p, size); c.stroke();
+      c.beginPath(); c.moveTo(0, p); c.lineTo(size, p); c.stroke();
+    }
+  }
+
+  function renderPad(){
+    var S = canvas.width;
+    var cell = S / state.w;
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = "#08080a";
+    ctx.fillRect(0, 0, S, S);
+    drawGridLines(ctx, S, cell);
+
+    var f = state.frames[state.index];
+    if (f){
+      ctx.fillStyle = "#f4f4f1";
+      for (var y = 0; y < state.h; y++){
+        for (var x = 0; x < state.w; x++){
+          if (getPx(f, x, y)){
+            var px = Math.floor(x * cell);
+            var py = Math.floor(y * cell);
+            var pw = Math.ceil(cell);
+            ctx.fillRect(px, py, pw, pw);
+          }
+        }
+      }
+    }
+  }
+
+  function requestRender(){
+    if (renderQueued) return;
+    renderQueued = true;
+    requestAnimationFrame(function(){
+      renderQueued = false;
+      renderPad();
+    });
+  }
+
+  function renderPreview(frame){
+    var S = preview.width;
+    var cell = S / state.w;
+    pctx.imageSmoothingEnabled = false;
+    pctx.fillStyle = "#070708";
+    pctx.fillRect(0, 0, S, S);
+    if (!frame) return;
+    pctx.fillStyle = "#f4f4f1";
+    for (var y = 0; y < state.h; y++){
+      for (var x = 0; x < state.w; x++){
+        if (getPx(frame, x, y)){
+          pctx.fillRect(Math.floor(x * cell), Math.floor(y * cell), Math.ceil(cell), Math.ceil(cell));
+        }
+      }
+    }
+  }
+
+  function renderThumb(c, frame){
+    var S = c.width;
+    var cell = S / state.w;
+    var cx = c.getContext("2d");
+    cx.imageSmoothingEnabled = false;
+    cx.fillStyle = "#070708";
+    cx.fillRect(0, 0, S, S);
+    cx.fillStyle = "#f4f4f1";
+    for (var y = 0; y < state.h; y++){
+      for (var x = 0; x < state.w; x++){
+        if (getPx(frame, x, y)){
+          cx.fillRect(Math.floor(x * cell), Math.floor(y * cell), Math.ceil(cell), Math.ceil(cell));
+        }
+      }
+    }
+  }
+
+  function renderFrames(){
+    var strip = $("frames");
+    var html = "";
+    for (var i = 0; i < state.frames.length; i++){
+      html += '<button class="fchip' + (i === state.index ? " act" : "") + '" data-i="' + i + '" aria-label="' + t("frame.label", {n: i + 1}) + '">' +
+        '<canvas width="92" height="92"></canvas><span>' + (i + 1) + "</span></button>";
+    }
+    strip.innerHTML = html;
+    var cvs = strip.querySelectorAll("canvas");
+    for (var j = 0; j < cvs.length; j++) renderThumb(cvs[j], state.frames[j]);
+  }
+
+  function renderAll(){
+    renderPad();
+    renderFrames();
+    if (!state.playing) renderPreview(state.frames[state.index]);
+    updateStats();
+  }
+
+  function updateStats(){
+    $("stat-frames").textContent = state.frames.length;
+    $("stat-dur").textContent = (state.frames.length / state.fps).toFixed(2) + " " + t("dur.s");
+    $("stat-grid").textContent = state.w + " x " + state.h;
+    $("grid-label").textContent = state.w + " x " + state.h;
+    $("play-fps-label").textContent = state.fps;
+  }
+
+  function updateButtons(){
+    $("undo-btn").disabled = history.length === 0;
+    $("redo-btn").disabled = redoStack.length === 0;
+  }
+
+  function syncUI(){
+    $("name").value = state.name;
+    $("fps").value = state.fps;
+    $("fps-val").textContent = state.fps;
+    var gb = $("grid-seg").querySelectorAll("button");
+    for (var i = 0; i < gb.length; i++) gb[i].classList.toggle("act", Number(gb[i].getAttribute("data-grid")) === state.w);
+    var bb = $("brush-seg").querySelectorAll("button");
+    for (var j = 0; j < bb.length; j++) bb[j].classList.toggle("act", Number(bb[j].getAttribute("data-brush")) === state.brush);
+    var tb = $("tool-seg").querySelectorAll("button");
+    for (var k = 0; k < tb.length; k++) tb[k].classList.toggle("act", tb[k].getAttribute("data-tool") === state.tool);
+    $("round-btn").classList.toggle("act", state.round);
+    $("erase-btn").classList.toggle("act", state.erase);
+    $("play-btn").textContent = state.playing ? t("play.stop") : t("play.play");
+    updateStats();
+    updateButtons();
+  }
+
+  // ------------------------------------------------------------
+  //  Playback
+  // ------------------------------------------------------------
+
+  function tickPlay(){
+    if (!state.playing) return;
+    renderPreview(state.frames[state.playIndex]);
+    state.playIndex = (state.playIndex + 1) % state.frames.length;
+    state.playTimer = setTimeout(tickPlay, Math.max(20, 1000 / state.fps));
+  }
+
+  function startPlay(){
+    if (state.playing) return;
+    if (!state.frames.length) return;
+    state.playing = true;
+    state.playIndex = state.index;
+    $("play-btn").textContent = t("play.stop");
+    tickPlay();
+  }
+
+  function stopPlay(){
+    if (!state.playing) return;
+    state.playing = false;
+    clearTimeout(state.playTimer);
+    state.playTimer = null;
+    $("play-btn").textContent = t("play.play");
+    renderPreview(state.frames[state.index]);
+  }
+
+  // ------------------------------------------------------------
+  //  Frame operations
+  // ------------------------------------------------------------
+
+  function selectFrame(i){
+    if (i < 0 || i >= state.frames.length) return;
+    stopPlay();
+    state.index = i;
+    renderAll();
+    saveLocal();
+  }
+
+  function addFrame(){
+    if (state.frames.length >= MAX_FRAMES) return toast(t("toast.maxFrames", {n: MAX_FRAMES}), true);
+    stopPlay();
+    pushHistory();
+    state.frames.splice(state.index + 1, 0, blankFrame(state.w));
+    state.index++;
+    syncUI();
+    renderAll();
+    saveLocal();
+  }
+
+  function duplicateFrame(){
+    if (state.frames.length >= MAX_FRAMES) return toast(t("toast.maxFrames", {n: MAX_FRAMES}), true);
+    stopPlay();
+    pushHistory();
+    state.frames.splice(state.index + 1, 0, new Uint8Array(state.frames[state.index]));
+    state.index++;
+    syncUI();
+    renderAll();
+    saveLocal();
+  }
+
+  function deleteFrame(){
+    if (state.frames.length <= 1) return toast(t("toast.keepFrame"), true);
+    stopPlay();
+    pushHistory();
+    state.frames.splice(state.index, 1);
+    if (state.index >= state.frames.length) state.index = state.frames.length - 1;
+    syncUI();
+    renderAll();
+    saveLocal();
+  }
+
+  function moveFrame(dir){
+    var to = state.index + dir;
+    if (to < 0 || to >= state.frames.length) return;
+    stopPlay();
+    pushHistory();
+    var tmp = state.frames[state.index];
+    state.frames[state.index] = state.frames[to];
+    state.frames[to] = tmp;
+    state.index = to;
+    syncUI();
+    renderAll();
+    saveLocal();
+  }
+
+  function clearFrame(){
+    stopPlay();
+    pushHistory();
+    state.frames[state.index].fill(0);
+    renderAll();
+    saveLocal();
+  }
+
+  function invertFrame(){
+    stopPlay();
+    pushHistory();
+    var f = state.frames[state.index];
+    for (var i = 0; i < f.length; i++) f[i] ^= 0xFF;
+    renderAll();
+    saveLocal();
+  }
+
+  // ------------------------------------------------------------
+  //  Grid
+  // ------------------------------------------------------------
+
+  function setGrid(n){
+    if (state.w === n) return;
+    if (!confirm(t("confirm.grid", {n: n}))){
+      syncUI();
+      return;
+    }
+    stopPlay();
+    pushHistory();
+    state.w = state.h = n;
+    state.frames = [blankFrame(n)];
+    state.index = 0;
+    syncUI();
+    renderAll();
+    saveLocal();
+  }
+
+  // ------------------------------------------------------------
+  //  Name and saving
+  // ------------------------------------------------------------
+
+  function cleanName(raw){
+    var n = String(raw || "").trim().replace(/\.anim$/i, "").replace(/[\/\\:*?"<>|]/g, "").trim();
+    n = n.slice(0, 24).replace(/[. ]+$/g, "");
+    return n;
+  }
+
+  function b64(u8){
+    var s = "";
+    for (var i = 0; i < u8.length; i += 0x8000){
+      s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+    }
+    return btoa(s);
+  }
+
+  function unb64(s){
+    var bin = atob(s);
+    var u8 = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    return u8;
+  }
+
+  function saveLocalNow(){
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        v: 1, name: state.name, w: state.w, h: state.h, fps: state.fps,
+        index: state.index, frames: state.frames.map(b64)
+      }));
+    } catch(e){ /* overflow — ignore */ }
+  }
+
+  function saveLocal(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveLocalNow, 700);
+  }
+
+  function loadLocal(){
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (!raw) return false;
+      var d = JSON.parse(raw);
+      if (!d || d.v !== 1 || !d.w || !d.frames || !d.frames.length) return false;
+      var w = Number(d.w), h = Number(d.h) || w;
+      if (w !== h || w < 1 || w > 64) return false;
+      var fb = Math.ceil(w * h / 8);
+      var frames = d.frames.map(function(s){
+        var u = unb64(s);
+        if (u.length !== fb) throw new Error("bad");
+        return u;
+      });
+      state.w = w; state.h = h;
+      state.name = cleanName(d.name) || "MYANIM";
+      state.fps = Math.min(30, Math.max(1, Number(d.fps) || 12));
+      state.frames = frames;
+      state.index = Math.min(Math.max(0, Number(d.index) || 0), frames.length - 1);
+      return true;
+    } catch(e){
+      return false;
+    }
+  }
+
+  async function saveToDevice(playAfter){
+    var name = cleanName($("name").value);
+    if (!name){
+      toast(t("toast.enterName"), true);
+      return null;
+    }
+    $("name").value = name;
+    state.name = name;
+
+    var blob = new Blob([encodeAnim()], {type: "application/octet-stream"});
+    var fd = new FormData();
+    fd.append("file", blob, name + ".anim");
+
+    try {
+      var data = await fetch(apiUrl("/api/anim"), {method: "POST", body: fd}).then(function(r){
+        return r.json().then(function(j){ if (!r.ok || !j.ok) throw new Error(j.error || ("HTTP " + r.status)); return j; });
+      });
+      toast(t("toast.saved") + data.name);
+      if (playAfter){
+        await fetch(apiUrl("/api/play?name=" + encodeURIComponent(data.name)), {method: "POST"})
+          .then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); });
+        toast(t("toast.playingOnDevice") + data.name);
+      }
+      return data.name;
+    } catch(e){
+      toast(t("toast.saveError", {msg: e.message}), true);
+      return null;
+    }
+  }
+
+  function downloadAnim(){
+    var name = cleanName($("name").value) || "ANIM";
+    var blob = new Blob([encodeAnim()], {type: "application/octet-stream"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = name + ".anim";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+  }
+
+  function loadFile(file){
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try {
+        var d = decodeAnim(reader.result);
+        stopPlay();
+        pushHistory();
+        state.w = d.w; state.h = d.h;
+        state.fps = Math.min(30, Math.max(1, d.fps));
+        state.frames = d.frames;
+        state.index = 0;
+        state.name = cleanName(file.name.replace(/\.anim$/i, "")) || "ANIM";
+        syncUI();
+        renderAll();
+        saveLocal();
+        toast(t("toast.loaded", {name: state.name, n: d.frames.length}));
+      } catch(e){
+        toast(t("toast.openFailed", {msg: e.message}), true);
+      }
+    };
+    reader.onerror = function(){ toast(t("toast.readError"), true); };
+    reader.readAsArrayBuffer(file);
+  }
+
+  // ------------------------------------------------------------
+  //  Pointer
+  // ------------------------------------------------------------
+
+  function cellFromEvent(e){
+    var r = canvas.getBoundingClientRect();
+    var x = Math.floor((e.clientX - r.left) / r.width * state.w);
+    var y = Math.floor((e.clientY - r.top) / r.height * state.h);
+    if (x < 0) x = 0;
+    if (y < 0) y = 0;
+    if (x >= state.w) x = state.w - 1;
+    if (y >= state.h) y = state.h - 1;
+    return {x: x, y: y};
+  }
+
+  function onDown(e){
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    e.preventDefault();
+    stopPlay();
+    pushHistory();
+    drawing = true;
+    lastCell = null;
+    try { canvas.setPointerCapture(e.pointerId); } catch(err){}
+    var cell = cellFromEvent(e);
+    if (isShapeTool()){
+      shapeStart = cell;
+      shapeBase = new Uint8Array(state.frames[state.index]);
+      shapePreview(cell);
+    } else {
+      lineTo(cell);
+    }
+    requestRender();
+  }
+
+  function onMove(e){
+    if (!drawing) return;
+    e.preventDefault();
+    var cell = cellFromEvent(e);
+    if (isShapeTool() && shapeStart) shapePreview(cell);
+    else lineTo(cell);
+    requestRender();
+  }
+
+  function onUp(e){
+    if (!drawing) return;
+    drawing = false;
+    lastCell = null;
+    shapeStart = null;
+    shapeBase = null;
+    try { canvas.releasePointerCapture(e.pointerId); } catch(err){}
+    renderFrames();
+    renderPreview(state.frames[state.index]);
+    saveLocal();
+    updateButtons();
+  }
+
+  // ------------------------------------------------------------
+  //  Events
+  // ------------------------------------------------------------
+
+  canvas.addEventListener("pointerdown", onDown);
+  canvas.addEventListener("pointermove", onMove);
+  canvas.addEventListener("pointerup", onUp);
+  canvas.addEventListener("pointercancel", onUp);
+  canvas.addEventListener("contextmenu", function(e){ e.preventDefault(); });
+
+  $("brush-seg").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-brush]");
+    if (!b) return;
+    state.brush = Number(b.getAttribute("data-brush"));
+    syncUI();
+  });
+
+  $("tool-seg").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-tool]");
+    if (!b) return;
+    state.tool = b.getAttribute("data-tool");
+    state.erase = false;
+    syncUI();
+  });
+
+  $("round-btn").addEventListener("click", function(){
+    state.round = !state.round;
+    syncUI();
+  });
+
+  $("invert-btn").addEventListener("click", invertFrame);
+
+  $("erase-btn").addEventListener("click", function(){
+    state.erase = !state.erase;
+    syncUI();
+  });
+
+  $("clear-btn").addEventListener("click", clearFrame);
+  $("undo-btn").addEventListener("click", undo);
+  $("redo-btn").addEventListener("click", redo);
+
+  $("add-frame").addEventListener("click", addFrame);
+  $("dup-frame").addEventListener("click", duplicateFrame);
+  $("del-frame").addEventListener("click", deleteFrame);
+  $("frame-left").addEventListener("click", function(){ moveFrame(-1); });
+  $("frame-right").addEventListener("click", function(){ moveFrame(1); });
+
+  $("frames").addEventListener("click", function(e){
+    var b = e.target.closest(".fchip");
+    if (!b) return;
+    selectFrame(Number(b.getAttribute("data-i")));
+  });
+
+  $("play-btn").addEventListener("click", function(){
+    if (state.playing) stopPlay(); else startPlay();
+  });
+
+  $("fps").addEventListener("input", function(){
+    state.fps = Number(this.value) || 12;
+    $("fps-val").textContent = state.fps;
+    $("play-fps-label").textContent = state.fps;
+    updateStats();
+    saveLocal();
+  });
+
+  $("name").addEventListener("input", function(){
+    state.name = this.value;
+    saveLocal();
+  });
+
+  $("host").addEventListener("change", function(){
+    try { localStorage.setItem(LS_HOST, deviceBase()); } catch(e){}
+    updateSiteLink();
+    refreshDevice();
+  });
+
+  $("grid-seg").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-grid]");
+    if (!b) return;
+    setGrid(Number(b.getAttribute("data-grid")));
+  });
+
+  $("save-btn").addEventListener("click", function(){ saveToDevice(false); });
+  $("save-play-btn").addEventListener("click", function(){ saveToDevice(true); });
+  $("download-btn").addEventListener("click", downloadAnim);
+
+  $("load-btn").addEventListener("click", function(){ $("load-input").click(); });
+  $("load-input").addEventListener("change", function(){
+    loadFile(this.files && this.files[0] ? this.files[0] : null);
+    this.value = "";
+  });
+
+  document.addEventListener("keydown", function(e){
+    var tag = (e.target && e.target.tagName) || "";
+    if (/INPUT|TEXTAREA|SELECT/.test(tag)) return;
+    var mod = e.ctrlKey || e.metaKey;
+    if (mod && e.key.toLowerCase() === "z"){
+      e.preventDefault();
+      if (e.shiftKey) redo(); else undo();
+    } else if (mod && e.key.toLowerCase() === "y"){
+      e.preventDefault(); redo();
+    } else if (e.key.toLowerCase() === "e"){
+      state.erase = !state.erase; syncUI();
+    } else if (e.key.toLowerCase() === "b"){
+      state.erase = false; syncUI();
+    } else if (e.key === " "){
+      e.preventDefault();
+      if (state.playing) stopPlay(); else startPlay();
+    }
+  });
+
+  $("lang-btn").addEventListener("click", function(){
+    lang = lang === "ru" ? "en" : "ru";
+    try { localStorage.setItem(LANG_KEY, lang); } catch(e){}
+    applyLang();
+    syncUI();
+    renderFrames();
+    refreshDevice();
+  });
+
+  window.addEventListener("beforeunload", function(){ saveLocalNow(); });
+
+  // ------------------------------------------------------------
+  //  Device status
+  // ------------------------------------------------------------
+
+  async function refreshDevice(){
+    updateSiteLink();
+    try {
+      var r = await fetch(apiUrl("/api/info"), {cache: "no-store"});
+      if (!r.ok) throw new Error();
+      var info = await r.json();
+      $("dev-dot").className = "dot on";
+      $("dev-text").textContent = info.playing ? (t("status.playing") + info.playing) : t("status.online");
+    } catch(e){
+      $("dev-dot").className = "dot";
+      $("dev-text").textContent = t("status.offline");
+    }
+  }
+
+  // ------------------------------------------------------------
+  //  Startup
+  // ------------------------------------------------------------
+
+  (async function init(){
+    try {
+      var savedHost = localStorage.getItem(LS_HOST);
+      if (savedHost) $("host").value = savedHost;
+    } catch(e){}
+    updateSiteLink();
+
+    if (!loadLocal()){
+      var s = null;
+      try { s = await fetch(apiUrl("/api/settings"), {cache: "no-store"}).then(function(r){ return r.ok ? r.json() : null; }); } catch(e){}
+      state.w = state.h = (s && Number(s.grid) === 64) ? 64 : 25;
+      state.fps = (s && Number(s.fps)) ? Math.min(30, Math.max(1, Number(s.fps))) : 12;
+      state.frames = [blankFrame(state.w)];
+      state.index = 0;
+      state.name = "MYANIM";
+    }
+    syncUI();
+    renderAll();
+    applyLang();
+    refreshDevice();
+  })();
+
+  setInterval(refreshDevice, 10000);
+})();
+</script>
+</body>
+</html>

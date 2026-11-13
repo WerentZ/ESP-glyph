@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#050506">
+<title>Glyph Matrix</title>
+<style>
+  :root{
+    --bg:#050506;
+    --card:#101012;
+    --card2:#151518;
+    --line:#26262b;
+    --line2:#34343a;
+    --fg:#f2f2f0;
+    --muted:#8b8b93;
+    --dim:#606068;
+    --accent:#e10600;
+    --ok:#7ae582;
+    --radius:20px;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);
+    color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding:18px 14px 40px;
+    min-height:100vh;
+  }
+  body::before{
+    content:"";
+    position:fixed;inset:0;
+    background:
+      radial-gradient(700px 380px at 50% -12%,rgba(255,255,255,.07),transparent 70%),
+      radial-gradient(400px 300px at 100% 100%,rgba(225,6,0,.06),transparent 70%);
+    pointer-events:none;z-index:-1;
+  }
+  .wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 4px 8px}
+  .brand{display:flex;align-items:center;gap:12px;min-width:0}
+  .logo{
+    width:42px;height:42px;border:1px solid var(--line2);border-radius:14px;
+    display:grid;place-items:center;background:var(--card);flex:0 0 auto;color:var(--fg);
+  }
+  .logo svg{width:24px;height:24px;display:block}
+  .brand h1{font-size:17px;line-height:1.1;margin:0;letter-spacing:.14em;text-transform:uppercase;font-weight:650}
+  .brand .sub{font-size:11px;color:var(--muted);letter-spacing:.18em;text-transform:uppercase;margin-top:3px}
+  .chip{
+    display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);
+    background:var(--card);border-radius:999px;padding:8px 12px;font-size:11px;
+    letter-spacing:.08em;text-transform:uppercase;color:var(--muted);white-space:nowrap;
+  }
+  .lang{display:flex;border:1px solid var(--line);border-radius:999px;padding:3px;gap:3px;background:#0a0a0c}
+  .lang button{
+    appearance:none;border:0;background:transparent;color:var(--muted);
+    font:600 11px/1 inherit;padding:7px 9px;border-radius:999px;cursor:pointer;min-height:30px;
+  }
+  .lang button.act{background:var(--fg);color:#08080a}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--dim);flex:0 0 auto}
+  .dot.on{background:var(--ok);box-shadow:0 0 10px rgba(122,229,130,.8)}
+  .dot.play{background:var(--accent);box-shadow:0 0 10px rgba(225,6,0,.75)}
+  .card{
+    border:1px solid var(--line);background:linear-gradient(180deg,var(--card2),var(--card));
+    border-radius:var(--radius);padding:18px;
+  }
+  .card h2{
+    margin:0 0 14px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--muted);font-weight:600;display:flex;align-items:center;gap:9px;
+  }
+  .card h2::before{content:"";width:18px;height:1px;background:var(--line2)}
+  .hero{display:flex;flex-direction:column;gap:14px}
+  .hero-row{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .now{font-size:22px;font-weight:600;letter-spacing:-.01em}
+  .now small{display:block;font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;margin-top:6px;font-weight:500}
+  .addr{font-family:var(--mono);font-size:26px;letter-spacing:-.02em}
+  .addr a{color:var(--fg);text-decoration:none;border-bottom:1px dashed var(--line2)}
+  .addr-sub{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:6px}
+  .grid-info{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+  .cell{background:var(--card);padding:11px 13px;min-width:0}
+  .cell .k{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+  .cell .v{font-family:var(--mono);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cell.wide{grid-column:1/-1}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 0;border-top:1px solid var(--line)}
+  .row:first-of-type{border-top:0;padding-top:0}
+  .row:last-of-type{padding-bottom:0}
+  .row .label{font-size:13px}
+  .row .hint{font-size:11px;color:var(--muted);margin-top:3px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:999px;padding:3px;gap:3px;background:#0a0a0c;max-width:100%;overflow:auto}
+  .seg button{
+    appearance:none;border:0;background:transparent;color:var(--muted);
+    font:600 12px/1 inherit;padding:9px 13px;border-radius:999px;cursor:pointer;
+    white-space:nowrap;letter-spacing:.04em;min-height:34px;
+  }
+  .seg button.act{background:var(--fg);color:#08080a}
+  .fpsbox{display:flex;align-items:center;gap:12px}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:150px;max-width:44vw;height:26px;background:transparent;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--line2);border-radius:2px}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;
+    background:var(--fg);border:4px solid var(--card);margin-top:-8px;box-shadow:0 0 0 1px var(--line2);
+  }
+  input[type=range]::-moz-range-track{height:2px;background:var(--line2);border-radius:2px}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--fg);border:4px solid var(--card)}
+  .val{font-family:var(--mono);font-size:15px;min-width:44px;text-align:right}
+  .btn{
+    appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    border:1px solid var(--line2);background:var(--card);color:var(--fg);
+    font:600 12px/1 inherit;letter-spacing:.08em;text-transform:uppercase;
+    padding:12px 16px;border-radius:12px;cursor:pointer;min-height:44px;text-decoration:none;
+  }
+  .btn:hover{border-color:#4a4a52}
+  .btn:disabled{opacity:.35;cursor:default}
+  .btn.primary{background:var(--fg);color:#08080a;border-color:var(--fg)}
+  .btn.red{color:#ff6b66;border-color:#4a2320}
+  .btn.small{padding:9px 11px;min-height:36px;font-size:11px;border-radius:10px}
+  .btn.ghost{background:transparent}
+  .btn.icon{width:38px;padding:0;min-height:38px}
+  .row-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .upload{border:1px dashed var(--line2);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px;background:#0b0b0d}
+  .upload input[type=file]{display:none}
+  .upload .fake{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;background:var(--card);
+  }
+  .upload .fake span{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .upload .fake b{font-size:11px;letter-spacing:.1em;color:var(--fg);text-transform:uppercase;white-space:nowrap}
+  .progress{height:3px;border-radius:3px;background:var(--line);overflow:hidden;display:none}
+  .progress i{display:block;height:100%;width:0;background:var(--fg);transition:width .15s ease}
+  .list{display:flex;flex-direction:column;gap:8px}
+  .anim{
+    display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:14px;
+    padding:12px;background:#0c0c0e;
+  }
+  .thumb{
+    width:44px;height:44px;border-radius:10px;border:1px solid var(--line);
+    background:#070708;display:grid;place-items:center;flex:0 0 auto;overflow:hidden;
+  }
+  .thumb svg{width:28px;height:28px;color:var(--muted)}
+  .anim .meta{min-width:0;flex:1}
+  .anim .name{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .anim .sub{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .anim .tools{display:flex;gap:6px;flex:0 0 auto}
+  .empty{border:1px dashed var(--line2);border-radius:16px;padding:26px 18px;text-align:center;color:var(--muted);font-size:13px}
+  .empty a{color:var(--fg)}
+  .foot{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--dim);font-size:11px;padding:6px 4px}
+  .foot a{color:var(--muted);text-decoration:none;border-bottom:1px solid var(--line2)}
+  .toast{
+    position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);
+    background:var(--fg);color:#08080a;border-radius:999px;padding:12px 18px;
+    font:600 12px/1.2 inherit;letter-spacing:.03em;opacity:0;pointer-events:none;
+    transition:opacity .2s ease,transform .2s ease;z-index:50;max-width:90vw;text-align:center;
+    box-shadow:0 10px 40px rgba(0,0,0,.5);
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .toast.err{background:#ff6b66;color:#1a0503}
+  @media (max-width:420px){
+    body{padding:14px 10px 34px}
+    .card{padding:15px}
+    .addr{font-size:22px}
+    .seg button{padding:9px 11px}
+    .row{gap:10px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="6" cy="6" r="1.5" fill="currentColor"/>
+          <circle cx="12" cy="6" r="1.5" fill="currentColor"/>
+          <circle cx="18" cy="6" r="1.5" fill="currentColor"/>
+          <circle cx="6" cy="12" r="1.5" fill="currentColor"/>
+          <circle cx="18" cy="12" r="1.5" fill="currentColor"/>
+          <circle cx="6" cy="18" r="1.5" fill="currentColor"/>
+          <circle cx="12" cy="18" r="1.5" fill="currentColor"/>
+          <circle cx="18" cy="18" r="1.5" fill="currentColor"/>
+          <circle cx="12" cy="12" r="2.4" fill="#e10600"/>
+        </svg>
+      </div>
+      <div>
+        <h1>Glyph Matrix</h1>
+        <div class="sub" id="brand-sub">OLED 128 x 64</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="lang" id="lang-seg" aria-label="Language">
+        <button data-lang="en" class="act">EN</button>
+        <button data-lang="ru">RU</button>
+      </div>
+      <div class="chip"><span class="dot" id="status-dot"></span><span id="status-text" data-i18n="status.connecting">Connecting</span></div>
+    </div>
+  </header>
+
+  <section class="card hero">
+    <div class="hero-row">
+      <div>
+        <div class="now" id="now-name">Glyph Matrix</div>
+        <small id="now-state" data-i18n="screen.main">Main screen</small>
+      </div>
+      <div style="text-align:right">
+        <div class="addr"><a id="site-link" href="/" target="_blank" rel="noopener">192.168.4.1</a></div>
+        <div class="addr-sub" id="site-host">glyph.local</div>
+      </div>
+    </div>
+    <div class="grid-info">
+      <div class="cell"><div class="k" data-i18n="info.network">Network</div><div class="v" id="info-ap">GlyphMatrix</div></div>
+      <div class="cell"><div class="k" data-i18n="info.pass">Wi-Fi password</div><div class="v" id="info-pass">—</div></div>
+      <div class="cell"><div class="k">IP</div><div class="v" id="info-ip">—</div></div>
+      <div class="cell"><div class="k" data-i18n="info.rotation">Rotation</div><div class="v" id="info-rot">0°</div></div>
+      <div class="cell"><div class="k">FPS</div><div class="v" id="info-fps">24</div></div>
+      <div class="cell"><div class="k" data-i18n="info.animations">Animations</div><div class="v" id="info-count">0</div></div>
+      <div class="cell"><div class="k" data-i18n="info.fs">FS memory</div><div class="v" id="info-fs">—</div></div>
+      <div class="cell"><div class="k" data-i18n="info.project">Project</div><div class="v" id="info-project">Glyph Matrix</div></div>
+      <div class="cell"><div class="k" data-i18n="info.board">Board</div><div class="v" id="info-board">ESP32</div></div>
+      <div class="cell wide"><div class="k" data-i18n="info.build">Build</div><div class="v" id="info-build">—</div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 data-i18n="settings.title">Device settings</h2>
+
+    <div class="row">
+      <div>
+        <div class="label" data-i18n="settings.fps">Frame rate</div>
+        <div class="hint" data-i18n="settings.fpsHint">Speed of all animations</div>
+      </div>
+      <div class="fpsbox">
+        <input type="range" id="set-fps" min="1" max="30" step="1" value="24" aria-label="FPS">
+        <div class="val"><span id="set-fps-val">24</span></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <div class="label" data-i18n="settings.rotation">Screen rotation</div>
+        <div class="hint" data-i18n="settings.rotationHint">OLED orientation</div>
+      </div>
+      <div class="seg" id="seg-rot">
+        <button data-v="0">0°</button>
+        <button data-v="1">90°</button>
+        <button data-v="2">180°</button>
+        <button data-v="3">270°</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <div class="label" data-i18n="settings.bg">Menu background</div>
+        <div class="hint" data-i18n="settings.bgHint">Snow or stars</div>
+      </div>
+      <div class="seg" id="seg-bg">
+        <button data-v="snow" data-i18n="settings.snow">Snow</button>
+        <button data-v="stars" data-i18n="settings.stars">Stars</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <div class="label" data-i18n="settings.grid">Editor grid</div>
+        <div class="hint" data-i18n="settings.gridHint">Default size for new animations</div>
+      </div>
+      <div class="seg" id="seg-grid">
+        <button data-v="25">25 x 25</button>
+        <button data-v="64">64 x 64</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 data-i18n="upload.title">Upload animation</h2>
+    <div class="upload">
+      <label class="fake" for="file-input">
+        <span id="file-label" data-i18n="upload.choose">Choose a .anim file</span>
+        <b data-i18n="upload.browse">Browse</b>
+      </label>
+      <input type="file" id="file-input" accept=".anim,application/octet-stream">
+      <div class="progress" id="upload-progress"><i id="upload-bar"></i></div>
+      <div class="row-actions">
+        <button class="btn primary" id="upload-btn" disabled data-i18n="upload.send">Upload to device</button>
+      </div>
+      <div class="hint" data-i18n-html="upload.hint">The file is saved under its own name without extension. Format: GLYM, up to 64 x 64. The editor is a separate <b>editor.html</b> file opened on your phone.</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 style="justify-content:space-between">
+      <span style="display:flex;align-items:center;gap:9px" data-i18n="anims.title">Animations</span>
+      <button class="btn small ghost" id="refresh-anims" style="margin-left:auto" data-i18n="anims.refresh">Refresh</button>
+    </h2>
+    <div class="list" id="anim-list">
+      <div class="empty" data-i18n="anims.loading">Loading list…</div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span id="foot-version">Glyph Matrix</span>
+    <span data-i18n-html="foot.editor">Editor — editor.html file · <a href="/api/info" target="_blank" rel="noopener">API</a></span>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var $ = function(id){ return document.getElementById(id); };
+  var info = null;
+  var anims = [];
+  var selectedFile = null;
+  var fpsTimer = null;
+
+  var LANG_KEY = "glyph-lang";
+  var lang = "en";
+  try { lang = localStorage.getItem(LANG_KEY) || "en"; } catch(e){}
+  if (lang !== "ru") lang = "en";
+
+  var DICT = {
+    en: {
+      "status.connecting": "Connecting",
+      "screen.main": "Main screen",
+      "screen.settings": "Settings",
+      "screen.info": "Information",
+      "screen.anims": "Animations",
+      "screen.preview": "Preview",
+      "screen.playing": "Playback",
+      "status.offline": "Offline",
+      "status.online": "Online",
+      "status.playing": "Playing: ",
+      "now.playing": "Playback",
+      "info.network": "Network",
+      "info.pass": "Wi-Fi password",
+      "info.rotation": "Rotation",
+      "info.animations": "Animations",
+      "info.fs": "FS memory",
+      "info.project": "Project",
+      "info.board": "Board",
+      "info.build": "Build",
+      "settings.title": "Device settings",
+      "settings.fps": "Frame rate",
+      "settings.fpsHint": "Speed of all animations",
+      "settings.rotation": "Screen rotation",
+      "settings.rotationHint": "OLED orientation",
+      "settings.bg": "Menu background",
+      "settings.bgHint": "Snow or stars",
+      "settings.snow": "Snow",
+      "settings.stars": "Stars",
+      "settings.grid": "Editor grid",
+      "settings.gridHint": "Default size for new animations",
+      "upload.title": "Upload animation",
+      "upload.choose": "Choose a .anim file",
+      "upload.browse": "Browse",
+      "upload.send": "Upload to device",
+      "upload.hint": "The file is saved under its own name without extension. Format: GLYM, up to 64 x 64. The editor is a separate <b>editor.html</b> file opened on your phone.",
+      "anims.title": "Animations",
+      "anims.refresh": "Refresh",
+      "anims.loading": "Loading list…",
+      "anims.emptyList": "Could not load list: ",
+      "anims.empty": "No animations yet.<br>Create the first one in <b>editor.html</b> or upload a .anim file.",
+      "foot.editor": "Editor — editor.html file · <a href=\"/api/info\" target=\"_blank\" rel=\"noopener\">API</a>",
+      "save.failed": "Could not save: ",
+      "toast.playing": "Playing: ",
+      "toast.playFailed": "Could not play: ",
+      "delete.confirm": "Delete animation “{name}”?",
+      "delete.failed": "Could not delete: ",
+      "toast.deleted": "Deleted: ",
+      "upload.need": "Choose a file with .anim extension",
+      "upload.done": "Uploaded: ",
+      "upload.failed": "Upload failed: ",
+      "upload.offline": "Network unavailable",
+      "title.play": "Play on device",
+      "title.download": "Download",
+      "title.delete": "Delete",
+      "meta.frames": "frames",
+      "unit.b": "B",
+      "unit.kb": "KB",
+      "unit.mb": "MB",
+      "dur.ms": "ms",
+      "dur.s": "s"
+    },
+    ru: {
+      "status.connecting": "Подключение",
+      "screen.main": "Главный экран",
+      "screen.settings": "Настройки",
+      "screen.info": "Информация",
+      "screen.anims": "Список анимаций",
+      "screen.preview": "Просмотр",
+      "screen.playing": "Воспроизведение",
+      "status.offline": "Нет связи",
+      "status.online": "На связи",
+      "status.playing": "Играет: ",
+      "now.playing": "Воспроизведение",
+      "info.network": "Сеть",
+      "info.pass": "Пароль Wi-Fi",
+      "info.rotation": "Поворот",
+      "info.animations": "Анимаций",
+      "info.fs": "Память FS",
+      "info.project": "Проект",
+      "info.board": "Плата",
+      "info.build": "Сборка",
+      "settings.title": "Настройки устройства",
+      "settings.fps": "Частота кадров",
+      "settings.fpsHint": "Скорость всех анимаций",
+      "settings.rotation": "Поворот экрана",
+      "settings.rotationHint": "Ориентация OLED",
+      "settings.bg": "Фон меню",
+      "settings.bgHint": "Снег или звёзды",
+      "settings.snow": "Снег",
+      "settings.stars": "Звёзды",
+      "settings.grid": "Сетка редактора",
+      "settings.gridHint": "Размер по умолчанию для новых анимаций",
+      "upload.title": "Загрузить анимацию",
+      "upload.choose": "Выберите файл .anim",
+      "upload.browse": "Обзор",
+      "upload.send": "Загрузить на устройство",
+      "upload.hint": "Файл сохранится под своим именем без расширения. Формат: GLYM, до 64 x 64. Редактор — отдельный файл <b>editor.html</b>, его открывают на телефоне.",
+      "anims.title": "Анимации",
+      "anims.refresh": "Обновить",
+      "anims.loading": "Загрузка списка…",
+      "anims.emptyList": "Не удалось загрузить список: ",
+      "anims.empty": "Пока нет анимаций.<br>Создайте первую в отдельном редакторе <b>editor.html</b> или загрузите файл .anim.",
+      "foot.editor": "Редактор — файл editor.html · <a href=\"/api/info\" target=\"_blank\" rel=\"noopener\">API</a>",
+      "save.failed": "Не удалось сохранить: ",
+      "toast.playing": "Играет: ",
+      "toast.playFailed": "Не удалось включить: ",
+      "delete.confirm": "Удалить анимацию «{name}»?",
+      "delete.failed": "Не удалось удалить: ",
+      "toast.deleted": "Удалено: ",
+      "upload.need": "Нужен файл с расширением .anim",
+      "upload.done": "Загружено: ",
+      "upload.failed": "Ошибка загрузки: ",
+      "upload.offline": "Сеть недоступна",
+      "title.play": "Играть на устройстве",
+      "title.download": "Скачать",
+      "title.delete": "Удалить",
+      "meta.frames": "кадр.",
+      "unit.b": "Б",
+      "unit.kb": "КБ",
+      "unit.mb": "МБ",
+      "dur.ms": "мс",
+      "dur.s": "с"
+    }
+  };
+
+  function t(key, vars){
+    var s = (DICT[lang] && DICT[lang][key]) || DICT.en[key] || key;
+    if (vars){
+      Object.keys(vars).forEach(function(k){
+        s = s.replace("{" + k + "}", vars[k]);
+      });
+    }
+    return s;
+  }
+
+  function screenName(name){
+    return name ? t("screen." + name) : t("screen.main");
+  }
+
+  function applyLang(){
+    document.documentElement.lang = lang;
+    var els = document.querySelectorAll("[data-i18n]");
+    for (var i = 0; i < els.length; i++){
+      els[i].textContent = t(els[i].getAttribute("data-i18n"));
+    }
+    var htmlEls = document.querySelectorAll("[data-i18n-html]");
+    for (var j = 0; j < htmlEls.length; j++){
+      htmlEls[j].innerHTML = t(htmlEls[j].getAttribute("data-i18n-html"));
+    }
+    var lb = $("lang-seg").querySelectorAll("button[data-lang]");
+    for (var k = 0; k < lb.length; k++){
+      lb[k].classList.toggle("act", lb[k].getAttribute("data-lang") === lang);
+    }
+    $("file-label").textContent = selectedFile ? selectedFile.name : t("upload.choose");
+    document.title = "Glyph Matrix";
+  }
+
+  function toast(msg, isErr){
+    var t = $("toast");
+    t.textContent = msg;
+    t.className = "toast show" + (isErr ? " err" : "");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function(){ t.className = "toast"; }, 2600);
+  }
+
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  function fmtBytes(n){
+    if (n == null) return "—";
+    if (n < 1024) return n + " " + t("unit.b");
+    if (n < 1024 * 1024) return (n / 1024).toFixed(0) + " " + t("unit.kb");
+    return (n / 1048576).toFixed(1) + " " + t("unit.mb");
+  }
+
+  function fmtDuration(ms){
+    if (ms == null) return "—";
+    if (ms < 1000) return ms + " " + t("dur.ms");
+    return (ms / 1000).toFixed(2) + " " + t("dur.s");
+  }
+
+  async function api(path, opts){
+    var res = await fetch(path, Object.assign({cache:"no-store"}, opts || {}));
+    var data = null;
+    try { data = await res.json(); } catch(e){}
+    if (!res.ok || (data && data.ok === false)){
+      throw new Error((data && data.error) || ("HTTP " + res.status));
+    }
+    return data;
+  }
+
+  function setSeg(container, value){
+    var b = container.querySelectorAll("button");
+    for (var i = 0; i < b.length; i++) b[i].classList.toggle("act", b[i].getAttribute("data-v") === String(value));
+  }
+
+  function applySettings(s){
+    if (!s) return;
+    $("set-fps").value = s.fps;
+    $("set-fps-val").textContent = s.fps;
+    setSeg($("seg-rot"), s.rotation);
+    setSeg($("seg-bg"), s.background);
+    setSeg($("seg-grid"), s.grid);
+  }
+
+  async function loadSettings(){
+    try {
+      applySettings(await api("/api/settings"));
+    } catch(e){ /* silently */ }
+  }
+
+  async function saveSettings(params){
+    try {
+      var s = await api("/api/settings", {
+        method: "POST",
+        headers: {"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},
+        body: new URLSearchParams(params).toString()
+      });
+      applySettings(s);
+      refreshInfo();
+      return true;
+    } catch(e){
+      toast(t("save.failed") + e.message, true);
+      return false;
+    }
+  }
+
+  async function refreshInfo(){
+    try {
+      info = await api("/api/info");
+    } catch(e){
+      $("status-text").textContent = t("status.offline");
+      $("status-dot").className = "dot";
+      return;
+    }
+
+    var playing = info.playing ? String(info.playing) : "";
+    var dot = $("status-dot");
+    if (playing){
+      dot.className = "dot play";
+      $("status-text").textContent = t("status.playing") + playing;
+    } else {
+      dot.className = "dot on";
+      $("status-text").textContent = screenName(info.screen);
+    }
+
+    $("now-name").textContent = playing || info.project || "Glyph Matrix";
+    $("now-state").textContent = playing ? t("now.playing") : screenName(info.screen);
+    $("site-link").textContent = info.ip || "192.168.4.1";
+    $("site-link").href = "http://" + (info.ip || "192.168.4.1") + "/";
+    $("site-host").textContent = info.host || "glyph.local";
+    $("info-ap").textContent = info.ap || "GlyphMatrix";
+    $("info-pass").textContent = info.ap_pass || "—";
+    $("info-ip").textContent = info.ip || "—";
+    $("info-rot").textContent = ((info.rotation || 0) * 90) + "°";
+    $("info-fps").textContent = info.fps != null ? info.fps : "—";
+    $("info-count").textContent = info.anim_count != null ? info.anim_count : "—";
+    $("info-fs").textContent = fmtBytes(info.fs_used) + " / " + fmtBytes(info.fs_total);
+    $("info-project").textContent = info.project || "—";
+    $("info-board").textContent = info.board || "—";
+    $("info-build").textContent = info.build || "—";
+    $("brand-sub").textContent = (info.grid && info.grid.default ? info.grid.default : 25) + " x " +
+      (info.grid && info.grid.default ? info.grid.default : 25) + " · v" + (info.version || "");
+    $("foot-version").textContent = (info.project || "Glyph Matrix") + " · v" + (info.version || "");
+  }
+
+  async function loadAnims(){
+    var list = $("anim-list");
+    try {
+      anims = await api("/api/animations");
+    } catch(e){
+      list.innerHTML = '<div class="empty">' + esc(t("anims.emptyList") + e.message) + "</div>";
+      return;
+    }
+
+    if (!anims.length){
+      list.innerHTML = '<div class="empty">' + t("anims.empty") + "</div>";
+      return;
+    }
+
+    var html = "";
+    for (var i = 0; i < anims.length; i++){
+      var a = anims[i];
+      html += '<div class="anim">' +
+        '<div class="thumb">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3">' +
+            '<rect x="3" y="4" width="18" height="15" rx="2.5"/>' +
+            '<path d="M3 15.5l4.3-4.1a1.6 1.6 0 0 1 2.2 0l3.2 3.1 2.1-2a1.6 1.6 0 0 1 2.2 0L21 15.5"/>' +
+            '<circle cx="8.2" cy="8.6" r="1.3" fill="currentColor" stroke="none"/>' +
+          "</svg>" +
+        "</div>" +
+        '<div class="meta">' +
+          '<div class="name">' + esc(a.name) + "</div>" +
+          '<div class="sub">' + a.w + " x " + a.h + " · " + a.frames + " " + esc(t("meta.frames")) + " · " +
+            esc(fmtDuration(a.duration_ms)) + " · " + esc(fmtBytes(a.bytes)) + "</div>" +
+        "</div>" +
+        '<div class="tools">' +
+          '<button class="btn icon" data-act="play" data-name="' + esc(a.name) + '" title="' + esc(t("title.play")) + '" aria-label="' + esc(t("title.play")) + '">▶</button>' +
+          '<button class="btn icon" data-act="download" data-name="' + esc(a.name) + '" title="' + esc(t("title.download")) + '" aria-label="' + esc(t("title.download")) + '">↓</button>' +
+          '<button class="btn icon red" data-act="delete" data-name="' + esc(a.name) + '" title="' + esc(t("title.delete")) + '" aria-label="' + esc(t("title.delete")) + '">✕</button>' +
+        "</div>" +
+      "</div>";
+    }
+    list.innerHTML = html;
+  }
+
+  async function playAnim(name){
+    try {
+      await api("/api/play?name=" + encodeURIComponent(name), {method:"POST"});
+      toast(t("toast.playing") + name);
+      refreshInfo();
+      setTimeout(refreshInfo, 1200);
+    } catch(e){
+      toast(t("toast.playFailed") + e.message, true);
+    }
+  }
+
+  async function deleteAnim(name){
+    if (!confirm(t("delete.confirm", {name: name}))) return;
+    try {
+      await api("/api/anim?name=" + encodeURIComponent(name), {method:"DELETE"});
+      toast(t("toast.deleted") + name);
+      loadAnims();
+      refreshInfo();
+    } catch(e){
+      toast(t("delete.failed") + e.message, true);
+    }
+  }
+
+  function downloadAnim(name){
+    var a = document.createElement("a");
+    a.href = "/api/anim?name=" + encodeURIComponent(name);
+    a.download = name + ".anim";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  function uploadFile(file){
+    if (!file) return;
+    if (!/\.anim$/i.test(file.name)){
+      toast(t("upload.need"), true);
+      return;
+    }
+    var fd = new FormData();
+    fd.append("file", file, file.name);
+
+    var xhr = new XMLHttpRequest();
+    var progress = $("upload-progress");
+    var bar = $("upload-bar");
+    progress.style.display = "block";
+    bar.style.width = "0%";
+    $("upload-btn").disabled = true;
+
+    xhr.open("POST", "/api/anim");
+    xhr.upload.onprogress = function(e){
+      if (e.lengthComputable) bar.style.width = Math.round(e.loaded / e.total * 100) + "%";
+    };
+    xhr.onload = function(){
+      progress.style.display = "none";
+      $("upload-btn").disabled = !selectedFile;
+      var data = null;
+      try { data = JSON.parse(xhr.responseText); } catch(e){}
+      if (xhr.status === 200 && data && data.ok){
+        toast(t("upload.done") + data.name + " (" + data.frames + " " + t("meta.frames") + ")");
+        selectedFile = null;
+        $("file-input").value = "";
+        $("file-label").textContent = t("upload.choose");
+        loadAnims();
+        refreshInfo();
+      } else {
+        toast(t("upload.failed") + ((data && data.error) || ("HTTP " + xhr.status)), true);
+      }
+    };
+    xhr.onerror = function(){
+      progress.style.display = "none";
+      $("upload-btn").disabled = !selectedFile;
+      toast(t("upload.offline"), true);
+    };
+    xhr.send(fd);
+  }
+
+  // ---------- events ----------
+
+  $("set-fps").addEventListener("input", function(){
+    $("set-fps-val").textContent = this.value;
+    clearTimeout(fpsTimer);
+    fpsTimer = setTimeout(function(){
+      saveSettings({fps: $("set-fps").value});
+    }, 260);
+  });
+
+  $("seg-rot").addEventListener("click", function(e){
+    var b = e.target.closest("button");
+    if (!b) return;
+    saveSettings({rotation: b.getAttribute("data-v")});
+  });
+
+  $("seg-bg").addEventListener("click", function(e){
+    var b = e.target.closest("button");
+    if (!b) return;
+    saveSettings({background: b.getAttribute("data-v")});
+  });
+
+  $("seg-grid").addEventListener("click", function(e){
+    var b = e.target.closest("button");
+    if (!b) return;
+    saveSettings({grid: b.getAttribute("data-v")});
+  });
+
+  $("file-input").addEventListener("change", function(){
+    selectedFile = this.files && this.files[0] ? this.files[0] : null;
+    $("file-label").textContent = selectedFile ? selectedFile.name : t("upload.choose");
+    $("upload-btn").disabled = !selectedFile;
+  });
+
+  $("lang-seg").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-lang]");
+    if (!b) return;
+    lang = b.getAttribute("data-lang") === "ru" ? "ru" : "en";
+    try { localStorage.setItem(LANG_KEY, lang); } catch(err){}
+    applyLang();
+    refreshInfo();
+    loadAnims();
+  });
+
+  $("upload-btn").addEventListener("click", function(){
+    if (selectedFile) uploadFile(selectedFile);
+  });
+
+  $("refresh-anims").addEventListener("click", function(){
+    loadAnims();
+    refreshInfo();
+  });
+
+  $("anim-list").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-act]");
+    if (!b) return;
+    var act = b.getAttribute("data-act");
+    var name = b.getAttribute("data-name");
+    if (act === "play") playAnim(name);
+    else if (act === "download") downloadAnim(name);
+    else if (act === "delete") deleteAnim(name);
+  });
+
+  // ---------- startup ----------
+
+  applyLang();
+  refreshInfo();
+  loadSettings();
+  loadAnims();
+
+  setInterval(refreshInfo, 5000);
+  setInterval(function(){
+    if (!document.hidden) loadAnims();
+  }, 20000);
+
+  if ("serviceWorker" in navigator) {
+    // Stub: the page is served directly from the ESP32.
+  }
+})();
+</script>
+</body>
+</html>
