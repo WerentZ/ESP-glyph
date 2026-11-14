@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.gif" alt="Glyph Matrix — animated starfield around the project name" width="800">
+  <img src="assets/banner.gif" alt="Glyph Matrix — monochrome animated starfield around the project name" width="800">
 </p>
 
 [Русская версия](README.ru.md) · **English**
@@ -10,6 +10,7 @@ background, stores animations in LittleFS and serves a local website with a
 phone-friendly animation editor.
 
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-ESP32-e7352c)
+![Tested on](https://img.shields.io/badge/tested%20on-ESP32%20DevKit-informational)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Languages](https://img.shields.io/badge/UI-English%20%2F%20Russian-blue)
 
@@ -33,6 +34,35 @@ phone-friendly animation editor.
 - The device UI, website and editor all speak **English (default) and Russian**.
 
 ## Hardware
+
+**Tested on the ESP32 DOIT DevKit v1** (`esp32doit-devkit-v1` in
+`platformio.ini`): that is the board the firmware is developed, flashed and run
+on. Any ESP32 dev board that exposes the same pins works too.
+
+### What you need
+
+| Component | Qty | Notes |
+|---|---|---|
+| ESP32 DOIT DevKit v1 | 1 | tested board; USB port for flashing |
+| OLED 0.96", SSD1306, I2C, 128×64 | 1 | 4 pins: GND, VCC, SCL, SDA; address `0x3C` |
+| TP4056 charging module | 1 | charges the battery from USB; take the version with protection |
+| Boost converter, 3.7 V → 5 V (MT3608 or similar) | 1 | powers the devkit from the battery |
+| Li-ion battery 18650 or LiPo 3.7 V | 1 | optional, needed only for the portable build |
+| Tactile buttons 6×6 mm | 3 | up, down and OK |
+| Wires and a power switch | — | switch between the boost output and the devkit `5V` pin |
+
+Power chain for the portable build:
+
+```
+power:  USB-C ──► TP4056 ──► 3.7 V battery ──► boost 5 V ──► DevKit 5V/VIN ──► OLED 3.3 V
+flash:  USB-C ──► DevKit USB port
+```
+
+Use USB on the devkit for flashing. When the battery is connected, flip the
+switch so the boost feeds `5V`/`VIN`; do not power the `5V` pin from both USB and
+the boost at the same time.
+
+### Pinout
 
 | Part | ESP32 pin |
 |---|---|

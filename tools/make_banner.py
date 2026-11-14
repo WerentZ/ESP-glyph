@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Generates assets/banner.gif for the README.
 
-The banner is a small starfield: twinkling stars around the project name,
-a faint glow behind the letters and one shooting star per loop. It is a
-plain GIF so GitHub renders it in every browser and in both color themes.
+The banner is a monochrome starfield that mimics a Glyph Matrix panel: white
+pixels on a black OLED-like dot grid, a soft glow behind the project name and
+one shooting star per loop. The GIF uses a fixed grayscale palette, so the
+animation stays black and white in every browser and both color themes.
 
 Usage:  py tools/make_banner.py
 """
@@ -22,7 +23,8 @@ OUT = ROOT / "assets" / "banner.gif"
 W, H = 800, 200
 FRAMES = 36
 FPS = 18
-COLORS = 96
+COLORS = 64
+DOT_STEP = 4  # faint OLED pixel grid
 
 TITLE = "GLYPH MATRIX"
 SUBTITLE = "ESP32 · OLED 128×64"
@@ -56,37 +58,41 @@ def draw_tracked(draw: ImageDraw.ImageDraw, x: float, y: float, text: str,
 
 
 def make_background() -> Image.Image:
-    bg = Image.new("RGB", (W, H))
+    """Black panel with a faint vignette and a dim OLED dot grid."""
+    bg = Image.new("RGB", (W, H), (0, 0, 0))
     px = bg.load()
     for y in range(H):
         t = y / (H - 1)
-        r = int(5 + 9 * t)
-        g = int(8 + 14 * t)
-        b = int(20 + 28 * t)
+        base = 3 + 7 * t
         for x in range(W):
             # A soft horizontal falloff keeps the edges darker.
-            edge = 0.72 + 0.28 * math.sin(math.pi * x / (W - 1))
-            px[x, y] = (int(r * edge), int(g * edge), int(b * edge))
+            edge = 0.70 + 0.30 * math.sin(math.pi * x / (W - 1))
+            v = int(base * edge)
+            px[x, y] = (v, v, v)
+
+    grid = ImageDraw.Draw(bg)
+    for y in range(DOT_STEP // 2, H, DOT_STEP):
+        for x in range(DOT_STEP // 2, W, DOT_STEP):
+            grid.point((x, y), fill=(16, 16, 16))
     return bg
 
 
 class Star:
-    __slots__ = ("x", "y", "size", "phase", "speed", "color", "sparkle")
+    __slots__ = ("x", "y", "size", "phase", "speed", "level", "sparkle")
 
     def __init__(self, x: float, y: float, size: int, phase: float, speed: int,
-                 color: tuple, sparkle: bool) -> None:
+                 level: int, sparkle: bool) -> None:
         self.x = x
         self.y = y
         self.size = size
         self.phase = phase
         self.speed = speed
-        self.color = color
+        self.level = level
         self.sparkle = sparkle
 
 
 def make_stars(count: int, box: tuple[float, float, float, float]) -> list[Star]:
     rng = random.Random(20261113)
-    palette = [(196, 226, 255), (170, 205, 255), (222, 240, 255), (150, 190, 250)]
     stars: list[Star] = []
     x0, y0, x1, y1 = box
     while len(stars) < count:
@@ -100,7 +106,7 @@ def make_stars(count: int, box: tuple[float, float, float, float]) -> list[Star]
             size=rng.choice([1, 1, 1, 2]),
             phase=rng.uniform(0, math.tau),
             speed=rng.choice([1, 1, 2]),
-            color=rng.choice(palette),
+            level=rng.choice([150, 175, 200, 225, 255]),
             sparkle=rng.random() < 0.14,
         ))
     return stars
@@ -110,15 +116,16 @@ def draw_stars(overlay: ImageDraw.ImageDraw, stars: list[Star], frame: int) -> N
     t = frame / FRAMES
     for s in stars:
         wave = 0.5 + 0.5 * math.sin(s.phase + math.tau * s.speed * t)
-        alpha = int(18 + 200 * wave ** 3)
-        if alpha <= 20:
+        alpha = int(10 + 235 * wave ** 3)
+        if alpha <= 16:
             continue
+        gray = int(s.level * (0.55 + 0.45 * wave))
         r = s.size
         overlay.ellipse([s.x - r, s.y - r, s.x + r, s.y + r],
-                        fill=(*s.color, alpha))
+                        fill=(gray, gray, gray, alpha))
         if s.sparkle and wave > 0.72:
             arm = 2 + int(3 * wave)
-            ray = (*s.color, max(30, alpha // 2))
+            ray = (gray, gray, gray, max(26, alpha // 2))
             overlay.line([(s.x - arm, s.y), (s.x + arm, s.y)], fill=ray, width=1)
             overlay.line([(s.x, s.y - arm), (s.x, s.y + arm)], fill=ray, width=1)
 
@@ -135,18 +142,30 @@ def draw_shooting_star(overlay: ImageDraw.ImageDraw, frame: int) -> None:
     tail_y = head_y - trail * 0.30
     fade = math.sin(math.pi * t)
     overlay.line([(tail_x, tail_y), (head_x, head_y)],
-                 fill=(165, 215, 255, int(150 * fade)), width=2)
+                 fill=(255, 255, 255, int(140 * fade)), width=2)
     overlay.ellipse([head_x - 2, head_y - 2, head_x + 2, head_y + 2],
-                    fill=(240, 250, 255, int(230 * fade)))
+                    fill=(255, 255, 255, int(240 * fade)))
 
 
 def draw_hud(overlay: ImageDraw.ImageDraw) -> None:
     m, arm = 9, 16
-    color = (46, 96, 138, 150)
+    color = (78, 78, 78, 150)
     for x, y, sx, sy in ((m, m, 1, 1), (W - 1 - m, m, -1, 1),
                          (m, H - 1 - m, 1, -1), (W - 1 - m, H - 1 - m, -1, -1)):
         overlay.line([(x, y), (x + sx * arm, y)], fill=color, width=1)
         overlay.line([(x, y), (x, y + sy * arm)], fill=color, width=1)
+
+
+def gray_palette(colors: int = COLORS) -> Image.Image:
+    """Fixed grayscale ramp, so every frame shares the same black-and-white palette."""
+    pal = Image.new("P", (1, 1))
+    ramp: list[int] = []
+    for i in range(colors):
+        v = round(i * 255 / (colors - 1))
+        ramp.extend((v, v, v))
+    ramp.extend([0] * (768 - len(ramp)))
+    pal.putpalette(ramp)
+    return pal
 
 
 def main() -> None:
@@ -185,27 +204,25 @@ def main() -> None:
         draw_hud(draw)
         img = Image.alpha_composite(img, overlay)
 
-        # Glow behind the title.
+        # White glow behind the title.
         glow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         gdraw = ImageDraw.Draw(glow)
         draw_tracked(gdraw, title_x, title_y, TITLE, title_font,
-                     (96, 210, 255, 255), tracking)
+                     (255, 255, 255, 255), tracking)
         glow = glow.filter(ImageFilter.GaussianBlur(9))
         img = Image.alpha_composite(img, glow)
 
         # Sharp letters and the subtitle.
         text = ImageDraw.Draw(img)
         draw_tracked(text, title_x, title_y, TITLE, title_font,
-                     (236, 249, 255, 255), tracking)
+                     (255, 255, 255, 255), tracking)
         draw_tracked(text, (W - sub_w) / 2, sub_y, SUBTITLE, sub_font,
-                     (104, 156, 190, 220), sub_tracking)
+                     (150, 150, 150, 230), sub_tracking)
 
         frames.append(img.convert("RGB"))
 
-    # One shared palette avoids color flicker between frames.
-    palette_source = frames[0].quantize(colors=COLORS, method=Image.MEDIANCUT)
-    paletted = [f.quantize(palette=palette_source, dither=Image.Dither.NONE)
-                for f in frames]
+    palette = gray_palette()
+    paletted = [f.quantize(palette=palette, dither=Image.Dither.NONE) for f in frames]
 
     paletted[0].save(
         OUT,
@@ -217,7 +234,7 @@ def main() -> None:
         disposal=2,
     )
     print(f"wrote {OUT.relative_to(ROOT)} ({OUT.stat().st_size // 1024} KB, "
-          f"{W}x{H}, {FRAMES} frames)")
+          f"{W}x{H}, {FRAMES} frames, {COLORS} gray levels)")
 
 
 if __name__ == "__main__":
